@@ -13,6 +13,7 @@ auditoría → hallazgo → acción correctiva (CAPA) → verificación → cier
 - Sostenibilidad: huella de carbono (alcance 1, 2 y 3 parcial) con factores editables, metas de reducción con seguimiento, indicadores sociales e índice GRI/NIIF S2 exportable a CSV.
 - Checklists de sostenibilidad: GISTM, ICMM, ISO 14064, ISO 50001, NIIF S1/S2, comunidades, Ley 21.455/REP (Chile) y Ley 30754/DL 1278 (Perú).
 - Bitácora de auditoría inmutable (cadena SHA-256 por empresa, con disparadores que bloquean UPDATE y DELETE) y verificación de integridad.
+- Acceso solo por invitación: el superadmin crea las empresas y sus administradores, que deben cambiar la contraseña inicial al ingresar.
 - Límite de intentos en login y en el alta de empresas. Migraciones con Alembic.
 - Dashboard de KPIs. Aislamiento de datos por empresa.
 

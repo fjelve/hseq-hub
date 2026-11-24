@@ -54,7 +54,8 @@
     <label>Correo</label><input id="lEmail" type="email">
     <label>Contraseña</label><input id="lPass" type="password">
     <button class="btn" onclick="login()">Ingresar</button>
-    <button class="btn sec" onclick="toggleReg(true)">Crear empresa</button>
+    <button class="btn sec" id="btnReg" onclick="toggleReg(true)">Crear empresa</button>
+    <p id="loginHint" class="hidden" style="color:var(--mut);font-size:13px">Acceso solo por invitación. Si necesitas una cuenta, contacta al administrador de la plataforma.</p>
   </div>
   <div id="regForm" class="hidden">
     <label>Empresa</label><input id="rEmp">
@@ -79,6 +80,8 @@
     <button class="nav" data-v="leg" onclick="vista('leg')">📜 Requisitos legales</button>
     <button class="nav" data-v="amb" onclick="vista('amb')">🌱 Sostenibilidad</button>
     <button class="nav" data-v="bit" onclick="vista('bit')">🔒 Bitácora</button>
+    <button class="nav" data-v="emp" onclick="vista('emp')">🏢 Empresas</button>
+    <button class="nav" data-v="pwd" onclick="vista('pwd')">🔑 Mi contraseña</button>
     <div class="sp"></div>
     <button class="nav" onclick="salir()">Salir</button>
   </aside>
@@ -122,11 +125,16 @@ const registro = () => auth("/auth/registro", {method:"POST", headers:{"Content-
 function salir() { sessionStorage.removeItem("tk"); token = null; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); toggleReg(false); }
 async function iniciar() {
   yo = await api("/auth/me");
-  $("who").textContent = `${yo.empresa} · ${yo.pais === "peru" ? "Perú" : "Chile"} · ${yo.rol}`;
-  $("login").classList.add("hidden"); $("app").classList.remove("hidden"); vista("dash");
+  const sup = yo.rol === "superadmin";
+  $("who").textContent = sup ? `Plataforma · ${yo.nombre}` : `${yo.empresa} · ${yo.pais === "peru" ? "Perú" : "Chile"} · ${yo.rol}`;
+  document.querySelectorAll("aside .nav[data-v]").forEach(b => { const v = b.dataset.v;
+    b.classList.toggle("hidden", yo.debe_cambiar_password ? v !== "pwd" : sup ? !(v === "emp" || v === "pwd") : v === "emp"); });
+  $("login").classList.add("hidden"); $("app").classList.remove("hidden");
+  vista(yo.debe_cambiar_password ? "pwd" : sup ? "emp" : "dash");
 }
 const VISTAS = {};
 function vista(v) {
+  if (yo && yo.debe_cambiar_password) v = "pwd";
   document.querySelectorAll("aside .nav").forEach(b => b.classList.toggle("on", b.dataset.v === v));
   VISTAS[v]().catch(e => $("main").innerHTML = `<p class="err">${esc(e.message)}</p>`);
 }
@@ -383,6 +391,60 @@ async function sosNorm() {
     <table><tr><th>Checklist</th><th>Norma o estándar</th><th>Ítems</th></tr>${ps.map(p => `<tr><td>${esc(p.nombre)}</td><td>${esc(p.norma)}</td><td>${p.items.length}</td></tr>`).join("")}</table>
     <br><button class="btn" onclick="vista('aud')">Ir a Auditorías</button></div>`;
 }
+/* ---------- Mi contraseña ---------- */
+VISTAS.pwd = async () => {
+  const forzado = yo.debe_cambiar_password;
+  $("main").innerHTML = `<h2>Mi contraseña</h2>
+  ${forzado ? `<div class="card banner"><b>Debes cambiar tu contraseña</b><p>La contraseña inicial te la entregó otra persona. Elige una nueva para continuar.</p></div>` : ""}
+  <div class="card" style="max-width:460px"><label>Contraseña actual</label><input id="pA" type="password" autocomplete="current-password">
+    <label>Contraseña nueva (mín. 10 caracteres)</label><input id="pN" type="password" autocomplete="new-password">
+    <label>Repite la contraseña nueva</label><input id="pR" type="password" autocomplete="new-password">
+    <button class="btn" onclick="cambiarPwd()">Cambiar contraseña</button> <span id="pErr" class="err"></span><span id="pOk" style="color:var(--ok)"></span></div>`;
+};
+const cambiarPwd = () => run(async () => {
+  if ($("pN").value !== $("pR").value) throw new Error("Las contraseñas nuevas no coinciden");
+  await api("/auth/password", {method:"POST", body:{actual:$("pA").value, nueva:$("pN").value}});
+  if (yo.debe_cambiar_password) { await iniciar(); } else { $("pErr").textContent = ""; $("pOk").textContent = "Contraseña actualizada."; ["pA","pN","pR"].forEach(i => $(i).value = ""); }
+}, "pErr");
+
+/* ---------- Plataforma: empresas (superadmin) ---------- */
+VISTAS.emp = async () => {
+  const es = await api("/plataforma/empresas");
+  $("main").innerHTML = `<h2>Empresas clientes</h2>
+  <div class="card"><h3>Nueva empresa</h3><div class="row">
+    <div><label>Empresa</label><input id="eN"></div>
+    <div><label>Sector</label><select id="eS"><option value="mineria">Minería</option><option value="industria">Industria</option></select></div>
+    <div><label>País</label><select id="eP"><option value="chile">Chile</option><option value="peru">Perú</option></select></div></div>
+    <div class="row"><div><label>Nombre del administrador</label><input id="eAN"></div>
+    <div><label>Correo del administrador</label><input id="eAE" type="email"></div>
+    <div><label>Contraseña inicial (mín. 10)</label><input id="eAP" type="text" autocomplete="off"></div></div>
+    <button class="btn" onclick="crearEmpresa()">Crear empresa</button> <span id="eErr" class="err"></span>
+    <p style="color:var(--mut);font-size:12px">Entrega el correo y la contraseña inicial al cliente por un canal seguro. Deberá cambiarla la primera vez que ingrese.</p></div>
+  <div class="card"><h3>Empresas (${es.length})</h3><table><tr><th>Empresa</th><th>Sector</th><th>País</th><th>Usuarios</th><th>Hallazgos</th><th>Estado</th><th></th></tr>${
+    es.map(e => `<tr><td>${esc(e.nombre)}</td><td>${esc(e.sector)}</td><td>${esc(e.pais)}</td><td>${esc(e.usuarios)}</td><td>${esc(e.hallazgos)}</td>
+      <td><span class="tag ${e.activa ? "vigente" : "vencido"}">${e.activa ? "activa" : "desactivada"}</span></td>
+      <td><button class="btn sec" onclick="verUsuarios(${Number(e.id)})">Usuarios</button>
+          <button class="btn sec" onclick="alternarEmpresa(${Number(e.id)}, ${e.activa ? "false" : "true"})">${e.activa ? "Desactivar" : "Activar"}</button></td></tr>`).join("")}</table></div>
+  <div id="usr"></div>`;
+};
+const crearEmpresa = () => run(async () => {
+  await api("/plataforma/empresas", {method:"POST", body:{empresa:$("eN").value, sector:$("eS").value, pais:$("eP").value,
+    admin_nombre:$("eAN").value, admin_email:$("eAE").value, admin_password:$("eAP").value}});
+  vista("emp");
+}, "eErr");
+const alternarEmpresa = (id, activa) => (activa || confirm("Los usuarios de esta empresa no podrán ingresar mientras esté desactivada. ¿Continuar?"))
+  && run(async () => { await api("/plataforma/empresas/" + id, {method:"PATCH", body:{activa}}); vista("emp"); });
+async function verUsuarios(id) {
+  const us = await api(`/plataforma/empresas/${id}/usuarios`);
+  $("usr").innerHTML = `<div class="card"><h3>Usuarios</h3><table><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th></th></tr>${
+    us.map(u => `<tr><td>${esc(u.nombre)}</td><td>${esc(u.email)}</td><td>${esc(u.rol)}</td>
+      <td>${u.debe_cambiar_password ? "debe cambiar clave" : "ok"}</td>
+      <td><button class="btn sec" onclick="restablecer(${Number(u.id)})">Restablecer contraseña</button></td></tr>`).join("")}</table></div>`;
+  $("usr").scrollIntoView({behavior:"smooth"});
+}
+const restablecer = id => { const p = prompt("Nueva contraseña temporal (mín. 10 caracteres). El usuario deberá cambiarla al ingresar:");
+  if (p) run(async () => { await api(`/plataforma/usuarios/${id}/password`, {method:"POST", body:{nueva:p}}); alert("Contraseña restablecida."); }); };
+
 /* ---------- Bitácora ---------- */
 VISTAS.bit = async () => {
   if (yo.rol === "responsable") { $("main").innerHTML = "<h2>Bitácora</h2><p>Disponible para administradores y auditores.</p>"; return; }
@@ -403,6 +465,9 @@ async function verificarBit() {
   } catch (e) { $("bitRes").textContent = e.message; }
 }
 
+fetch(API + "/auth/config").then(r => r.json()).then(c => {
+  if (!c.registro_publico) { $("btnReg").classList.add("hidden"); $("loginHint").classList.remove("hidden"); }
+}).catch(() => {});
 if (token) iniciar().catch(salir);
 </script>
 </body>

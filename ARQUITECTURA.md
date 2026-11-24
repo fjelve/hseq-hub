@@ -59,6 +59,7 @@ backend/app/
 │   ├── ambiental.py     consumos mensuales
 │   ├── sostenibilidad.py emisiones, factores, metas, indicadores sociales, índice GRI
 │   ├── bitacora.py      consulta y verificación de la bitácora
+│   ├── plataforma.py    administración de empresas (solo superadmin)
 │   ├── dashboard.py     indicadores consolidados
 │   └── demo.py          carga de datos de ejemplo (solo cuentas vacías)
 └── services/
@@ -69,7 +70,8 @@ backend/app/
 
 | Módulo | Rutas principales (`/api/v1`) | Roles que escriben |
 |---|---|---|
-| Autenticación | `/auth/registro`, `/auth/login`, `/auth/me`, `/usuarios` | admin (usuarios) |
+| Autenticación | `/auth/login`, `/auth/me`, `/auth/password`, `/auth/config`, `/usuarios` (`/auth/registro` está cerrado) | admin (usuarios) |
+| Plataforma | `/plataforma/empresas`, `/plataforma/empresas/{id}/usuarios`, `/plataforma/usuarios/{id}/password` | solo superadmin |
 | Hallazgos / CAPA | `/hallazgos`, `/hallazgos/{id}/acciones`, `/hallazgos/{id}/cerrar` | admin, auditor |
 | Auditorías | `/plantillas`, `/auditorias`, `/auditorias/{id}/respuestas`, `/auditorias/{id}/cerrar` | admin, auditor |
 | Incidentes | `/incidentes`, `/horas-trabajadas`, `/kpis-seguridad` | admin, auditor |
@@ -131,6 +133,7 @@ Consumos mensuales ─► × factor de emisión ─► t CO2e por alcance 1, 2, 
 | Entradas | Validación con Pydantic (rangos, formatos de periodo, listas cerradas) |
 | Frontend | Todo texto dinámico se escapa antes de insertarlo; el CSV neutraliza fórmulas |
 | Contenedor | La API corre como usuario sin privilegios |
+| Acceso por invitación | El registro público está cerrado por defecto (`REGISTRO_PUBLICO=false`). El rol `superadmin` crea empresas y administradores, las activa o desactiva y restablece contraseñas, pero no puede operar datos de negocio. Toda contraseña asignada por otra persona obliga a cambiarla antes de usar el sistema; mientras tanto la API responde 403 |
 | Límite de intentos | Login: 5 fallos por IP y correo, y 30 por IP, en 15 min (429 con `Retry-After`). Alta de empresas: 5 por hora y por IP. Las cabeceras de proxy solo se creen con `TRUST_PROXY=true`. El tiempo de respuesta no revela qué correos existen |
 | Bitácora inmutable | Cadena SHA-256 por empresa. Disparadores en PostgreSQL y SQLite impiden UPDATE y DELETE. `GET /bitacora/verificar` detecta alteraciones y entradas faltantes en medio de la cadena |
 | Migraciones | Alembic con migración inicial `0001`. El contenedor migra al arrancar y adopta bases existentes sin recrearlas |
@@ -148,7 +151,7 @@ Local (Kiro) ─► git push ─► GitHub Action: pruebas ─► scp + ssh (cla
 | `docker-compose.yml` | `hseq_api` publicado solo en `127.0.0.1:8003` y `hseq_db` sin puerto expuesto. Valida con `docker compose config` |
 | Frontend | Lo sirve la propia API en el mismo origen (como Centinela y Radar), sin CORS ni URL configurable |
 | Nginx | `deploy/hseq.andrema.tech.conf` (el dominio es una propuesta) |
-| Estado | Desplegado en el VPS con DNS en Cloudflare, `.env` creado y Nginx activo. Pendiente: respaldos de la base. Ver `DEPLOY.md` |
+| Estado | Desplegado en el VPS con DNS en Cloudflare, `.env`, Nginx y respaldo diario. Ver `DEPLOY.md` |
 | Puertos ya ocupados | 8000 Privacia · 8001 y 9001 Centinela · 8002 Radar |
 ## 7. Piezas del ecosistema que podemos reutilizar
 
@@ -170,14 +173,14 @@ Local (Kiro) ─► git push ─► GitHub Action: pruebas ─► scp + ssh (cla
 | # | Brecha | Estado |
 |---|---|---|
 | 1 | Sin migraciones de base de datos | **Resuelta.** Alembic con migración inicial y adopción de bases existentes |
-| 2 | Registro abierto y sin límite de intentos | **Parcial.** Hay límite de intentos en login y alta de empresas. Falta captcha o registro por invitación |
+| 2 | Registro abierto y sin límite de intentos | **Resuelta.** Registro cerrado; solo el superadmin crea empresas. Hay límite de intentos en login y en el cambio de contraseña |
 | 3 | Alertas duplicadas con varios workers | **Mitigada.** El contenedor fija 1 worker. Si se escala, mover las alertas a un proceso aparte |
 | 4 | El código `HAL-AAAA-NNNN` se calcula con un conteo y dos altas simultáneas pueden chocar | Abierta. Usar una secuencia por empresa o reintentar ante conflicto |
 | 5 | Token JWT en `sessionStorage` y sin cabecera CSP | Abierta. Definir CSP en Nginx o usar cookie `HttpOnly` |
 | 6 | Sin bitácora inmutable ni RLS | **Bitácora resuelta. RLS abierta** (reutilizar `rls_setup.sql` de Privacia) |
 | 7 | `/demo/cargar` disponible en producción | Abierta (solo admin y solo cuentas vacías). Deshabilitar con `ENV=production` |
 | 8 | Sin evidencias adjuntas ni informes PDF | Abierta (producto) |
-| 9 | Sin respaldos de la base de HSEQ | Abierta. Falta agregarlo al cron del VPS |
+| 9 | Sin respaldos de la base de HSEQ | **Resuelta.** Respaldo diario a las 03:30 con restauración probada. Siguen en el mismo disco: falta una copia externa |
 | 10 | Factores de emisión referenciales | Abierta. Cargar factores oficiales por país y año |
 | 11 | Pruebas automáticas solo sobre SQLite | Parcial. En el VPS se verificó la migración y el disparador de la bitácora en PostgreSQL. El bloqueo `pg_advisory_xact_lock` bajo carga concurrente no se probó |
 | 12 | La bitácora no detecta el borrado de las últimas entradas | Abierta. Guardar fuera del sistema el último hash y el número de entradas, por ejemplo en el informe mensual |

@@ -3,6 +3,7 @@ from datetime import datetime, date
 from sqlalchemy import (
     Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint,
 )
+from sqlalchemy import false as sa_false, true as sa_true
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -18,6 +19,7 @@ class Empresa(Base):
     nombre = Column(String(200), nullable=False)
     sector = Column(String(30), nullable=False, default="mineria")  # mineria | industria
     pais = Column(String(10), nullable=False, default="chile")  # chile | peru
+    activa = Column(Boolean, nullable=False, default=True, server_default=sa_true())
     creada_en = Column(DateTime, default=_now)
 
 
@@ -28,8 +30,10 @@ class Usuario(Base):
     nombre = Column(String(150), nullable=False)
     email = Column(String(200), nullable=False, unique=True, index=True)
     password_hash = Column(String(200), nullable=False)
-    rol = Column(String(20), nullable=False, default="responsable")  # admin | auditor | responsable
+    rol = Column(String(20), nullable=False, default="responsable")  # superadmin | admin | auditor | responsable
     activo = Column(Boolean, default=True)
+    # Contraseña asignada por otra persona: debe cambiarla antes de usar el sistema.
+    debe_cambiar_password = Column(Boolean, nullable=False, default=False, server_default=sa_false())
     creado_en = Column(DateTime, default=_now)
 
 

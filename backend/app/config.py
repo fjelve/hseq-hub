@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "HSEQ Hub"
     APP_VERSION: str = "0.1.0"
     ENV: str = "development"  # development | production
+    # Las empresas las crea el superadmin de la plataforma. Poner true solo para demos abiertas.
+    REGISTRO_PUBLICO: bool = False
     DATABASE_URL: str = "sqlite:///./hseq.db"
     SECRET_KEY: str = INSECURE_DEFAULT_KEY
     TOKEN_EXPIRE_MINUTES: int = 480

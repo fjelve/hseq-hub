@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.database import SessionLocal, create_tables
-from app.routes import ambiental, auditorias, bitacora, dashboard, demo, hallazgos, incidentes, legal, sostenibilidad
+from app.routes import ambiental, auditorias, bitacora, dashboard, demo, hallazgos, incidentes, legal, plataforma, sostenibilidad
 from app.routes.auth import router as auth_router
 from app.seed_plantillas import seed_plantillas
 from app.services.alertas import bucle_alertas
@@ -50,6 +50,7 @@ app.include_router(legal.router, prefix=PREFIX)
 app.include_router(ambiental.router, prefix=PREFIX)
 app.include_router(sostenibilidad.router, prefix=PREFIX)
 app.include_router(bitacora.router, prefix=PREFIX)
+app.include_router(plataforma.router, prefix=PREFIX)
 app.include_router(demo.router, prefix=PREFIX)
 
 
