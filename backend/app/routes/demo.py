@@ -10,7 +10,7 @@ from app.auth import require_roles
 from app.database import get_db
 from app.models import (
     Accion, Auditoria, Empresa, HorasTrabajadas, Hallazgo, Incidente, IndicadorAmbiental,
-    PlantillaAuditoria, RequisitoLegal, Respuesta, Usuario,
+    PlantillaAuditoria, RequisitoLegal, Respuesta, Usuario, IndicadorSocial, MetaSostenibilidad,
 )
 from app.routes.hallazgos import PLAZO_DIAS, crear_hallazgo
 
@@ -132,5 +132,33 @@ def cargar(user: Usuario = Depends(require_roles("admin")), db: Session = Depend
             continue
         db.add(RequisitoLegal(empresa_id=eid, nombre=nombre, tipo=tipo, entidad=ent[e],
                               responsable_id=user.id, fecha_vencimiento=hoy + timedelta(days=dias)))
+    # Indicadores sociales (12 meses).
+    y, m = hoy.year, hoy.month
+    for k in range(12):
+        periodo = f"{y}-{m:02d}"
+        recl = rnd.randint(3, 6)
+        for tipo, v in [("empleados_total", 230 + (11 - k) * -1 + 12), ("mujeres_empleadas", 38 + (k // 3)),
+                        ("horas_capacitacion", rnd.randint(380, 620)),
+                        ("inversion_comunitaria", rnd.randint(8000, 12000)),
+                        ("reclamos_comunitarios", recl), ("reclamos_resueltos", max(0, recl - rnd.randint(0, 1)))]:
+            db.add(IndicadorSocial(empresa_id=eid, periodo=periodo, tipo=tipo, valor=v))
+        m -= 1
+        if m == 0:
+            y, m = y - 1, 12
+
+    # Metas con base calculada a partir de los datos cargados.
+    db.flush()
+    from app.services import sostenibilidad as sv
+    em = sv.total_anual(db, emp, "emisiones_tco2e") or 1000
+    agua = sv.total_anual(db, emp, "agua_m3") or 60000
+    db.add_all([
+        MetaSostenibilidad(empresa_id=eid, nombre="Reducir emisiones de GEI 30 % al 2030", indicador="emisiones_tco2e",
+                           anio_base=hoy.year - 2, valor_base=round(em * 1.18, 1), anio_meta=2030, reduccion_pct=30),
+        MetaSostenibilidad(empresa_id=eid, nombre="Reducir consumo de agua 10 %", indicador="agua_m3",
+                           anio_base=hoy.year - 1, valor_base=round(agua * 1.05, 1), anio_meta=hoy.year + 2, reduccion_pct=10),
+        MetaSostenibilidad(empresa_id=eid, nombre="Reducir residuos peligrosos 25 %", indicador="residuos_peligrosos_kg",
+                           anio_base=hoy.year - 1, valor_base=round((sv.total_anual(db, emp, "residuos_peligrosos_kg") or 15000) * 1.5, 1),
+                           anio_meta=hoy.year + 3, reduccion_pct=25),
+    ])
     db.commit()
     return {"ok": True}

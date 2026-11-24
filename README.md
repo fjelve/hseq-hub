@@ -9,6 +9,9 @@ auditoría → hallazgo → acción correctiva (CAPA) → verificación → cier
 - Al cerrar una auditoría: puntaje de cumplimiento y un hallazgo automático por cada "no cumple", con plazo según severidad (crítica 7 d, alta 15 d, media 30 d, baja 60 d).
 - CAPA: causa raíz, acciones con evidencia, cierre solo con acciones completas y verificación de eficacia.
 - Alertas automáticas por correo de hallazgos por vencer y vencidos (tarea periódica).
+- Incidentes con índices de frecuencia y severidad, requisitos legales con vencimientos y alertas.
+- Sostenibilidad: huella de carbono (alcance 1, 2 y 3 parcial) con factores editables, metas de reducción con seguimiento, indicadores sociales e índice GRI/NIIF S2 exportable a CSV.
+- Checklists de sostenibilidad: GISTM, ICMM, ISO 14064, ISO 50001, NIIF S1/S2, comunidades, Ley 21.455/REP (Chile) y Ley 30754/DL 1278 (Perú).
 - Dashboard de KPIs. Aislamiento de datos por empresa.
 
 Los checklists son un punto de partida resumido. Cada cliente debe validarlos contra su sistema de gestión y la normativa local vigente.
@@ -29,4 +32,6 @@ python -m venv .venv && .venv\Scripts\pip install -r requirements.txt
 ```
 
 ## Hoja de ruta
-Inspecciones móviles offline, matriz legal, huella de carbono/ESG, informes PDF, IA para causa raíz.
+Inspecciones móviles offline, evidencias adjuntas, informes PDF, alcance 3 completo, IA para causa raíz.
+
+Los factores de emisión incluidos son referenciales. Cada empresa debe reemplazarlos por el factor oficial vigente antes de reportar.

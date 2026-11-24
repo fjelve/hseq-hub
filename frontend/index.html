@@ -77,7 +77,7 @@
     <button class="nav" data-v="aud" onclick="vista('aud')">✅ Auditorías</button>
     <button class="nav" data-v="inc" onclick="vista('inc')">🚑 Incidentes</button>
     <button class="nav" data-v="leg" onclick="vista('leg')">📜 Requisitos legales</button>
-    <button class="nav" data-v="amb" onclick="vista('amb')">🌱 Ambiental / ESG</button>
+    <button class="nav" data-v="amb" onclick="vista('amb')">🌱 Sostenibilidad</button>
     <div class="sp"></div>
     <button class="nav" onclick="salir()">Salir</button>
   </aside>
@@ -160,6 +160,8 @@ VISTAS.dash = async () => {
     ${kpi(s.indice_frecuencia, "Índice de frecuencia (12 m)")}
     ${kpi(s.indice_severidad, "Índice de severidad (12 m)")}
     ${kpi(s.casi_accidentes_12m, "Casi accidentes reportados (12 m)")}
+    ${kpi(d.emisiones.total || null, "t CO₂e emitidas (12 m)")}
+    ${kpi(d.metas.length ? d.metas.filter(m => m === "atrasada").length + " de " + d.metas.length : null, "Metas de sostenibilidad atrasadas", d.metas.includes("atrasada") ? "bad" : "good")}
   </div>
   <div class="grid2">
     <div class="card"><h3>Tendencia de cumplimiento (%)</h3>${barras(d.tendencia_cumplimiento.map(t => ({l: t.fecha.slice(5), v: t.puntaje})), "var(--ok)")}</div>
@@ -278,21 +280,105 @@ VISTAS.leg = async () => {
 const crearL = () => run(async () => { await api("/requisitos", {method:"POST", body:{nombre:$("lN").value, tipo:$("lT").value, entidad:$("lE").value, fecha_vencimiento:$("lF").value || null}}); vista("leg"); }, "lErr");
 const renovar = id => { const f = prompt("Nueva fecha de vencimiento (AAAA-MM-DD):"); if (f) run(async () => { await api(`/requisitos/${id}/renovar?nueva_fecha=${encodeURIComponent(f)}`, {method:"POST"}); vista("leg"); }); };
 
-/* ---------- Ambiental ---------- */
+/* ---------- Sostenibilidad ---------- */
+const SOCIAL = {empleados_total:"Empleados (total)", mujeres_empleadas:"Mujeres empleadas", horas_capacitacion:"Horas de capacitación",
+  inversion_comunitaria:"Inversión comunitaria", reclamos_comunitarios:"Reclamos comunitarios", reclamos_resueltos:"Reclamos resueltos"};
+const AMB = ["energia_kwh","agua_m3","combustible_l","residuos_peligrosos_kg","residuos_no_peligrosos_kg"];
+let tabSos = "cons";
+const tabs = () => `<div style="margin-bottom:14px">${[["cons","Consumos"],["huella","Huella de carbono"],["metas","Metas"],["social","Social"],["gri","Reporte GRI / NIIF"],["norm","Normas y checklists"]]
+  .map(([k, n]) => `<button class="btn ${tabSos === k ? "" : "sec"}" onclick="tabSos='${k}';vista('amb')">${n}</button>`).join("")}</div>`;
 VISTAS.amb = async () => {
+  const cuerpo = await ({cons: sosCons, huella: sosHuella, metas: sosMetas, social: sosSocial, gri: sosGri, norm: sosNorm}[tabSos])();
+  $("main").innerHTML = `<h2>Sostenibilidad</h2>${tabs()}${cuerpo}`;
+};
+async function sosCons() {
   const a = await api("/ambiental");
-  const tipos = Object.keys(NOMBRE).filter(k => ["energia_kwh","agua_m3","combustible_l","residuos_peligrosos_kg","residuos_no_peligrosos_kg"].includes(k));
-  $("main").innerHTML = `<h2>Indicadores ambientales y ESG</h2>
-  <div class="card"><h3>Registrar consumo mensual</h3><div class="row">
+  return `<div class="card"><h3>Registrar consumo mensual</h3><div class="row">
     <div><label>Periodo</label><input id="mP" type="month" value="${mesISO()}"></div>
-    <div><label>Indicador</label><select id="mT">${tipos.map(t => `<option value="${t}">${NOMBRE[t]}</option>`).join("")}</select></div>
+    <div><label>Indicador</label><select id="mT">${AMB.map(t => `<option value="${t}">${NOMBRE[t]}</option>`).join("")}</select></div>
     <div><label>Valor</label><input id="mV" type="number" min="0" step="any"></div></div>
     <button class="btn" onclick="guardarAmb()">Guardar</button> <span id="mErr" class="err"></span></div>
-  <div class="grid2">${tipos.map(t => { const s = a[t] || {};
-    return `<div class="card"><h3>${NOMBRE[t]}</h3>${barras(Object.entries(s).map(([k, v]) => ({l: k.slice(2), v: Math.round(v)})))}</div>`; }).join("")}</div>`;
-};
+  <div class="grid2">${AMB.map(t => `<div class="card"><h3>${NOMBRE[t]}</h3>${barras(Object.entries(a[t] || {}).map(([k, v]) => ({l: k.slice(2), v: Math.round(v)})))}</div>`).join("")}</div>`;
+}
 const guardarAmb = () => run(async () => { await api("/ambiental", {method:"PUT", body:{periodo:$("mP").value, tipo:$("mT").value, valor:Number($("mV").value)}}); vista("amb"); }, "mErr");
 
+async function sosHuella() {
+  const e = await api("/emisiones"), t = e.total_12m;
+  const ref = e.factores.some(f => f.referencial);
+  return `${ref ? `<div class="card banner"><b>Factores referenciales.</b> Los valores marcados no son oficiales: reemplázalos por el factor vigente de tu país (p. ej. Huella Chile, HC Perú o MINEM) antes de reportar.</div>` : ""}
+  <div class="grid">${kpi(t.total, "t CO₂e totales (12 m)")}${kpi(t.alcance1, "Alcance 1 · combustibles")}${kpi(t.alcance2, "Alcance 2 · electricidad")}${kpi(t.alcance3, "Alcance 3 · residuos (parcial)")}
+    ${kpi(e.intensidad_t_por_mhh, "t CO₂e por millón de horas")}</div>
+  <div class="card"><h3>Emisiones mensuales (t CO₂e)</h3>${barras(Object.entries(e.por_periodo).map(([k, v]) => ({l: k.slice(2), v: Math.round((v.alcance1 + v.alcance2 + v.alcance3) * 10) / 10})), "#38bdf8")}</div>
+  <div class="card"><h3>Factores de emisión (kg CO₂e por unidad)</h3><table><tr><th>Fuente</th><th>Alcance</th><th>Factor</th><th>Origen</th></tr>${
+    e.factores.map(f => `<tr><td>${esc(f.nombre)} (${esc(f.unidad)})</td><td>${esc(f.alcance)}</td><td>${esc(f.valor)}</td>
+      <td>${f.referencial ? '<span class="tag por_vencer">referencial</span>' : esc(f.fuente)}</td></tr>`).join("")}</table>
+    <h4>Reemplazar un factor</h4><div class="row">
+    <div><label>Fuente de emisión</label><select id="fC">${e.factores.map(f => `<option value="${esc(f.clave)}">${esc(f.nombre)}</option>`).join("")}</select></div>
+    <div><label>Factor (kg CO₂e/unidad)</label><input id="fV" type="number" step="any" min="0"></div>
+    <div><label>Fuente oficial</label><input id="fF" placeholder="Ej: Huella Chile 2025"></div></div>
+    <button class="btn sec" onclick="guardarFactor()">Guardar factor</button> <span id="fErr" class="err"></span></div>`;
+}
+const guardarFactor = () => run(async () => { await api("/factores", {method:"PUT", body:{clave:$("fC").value, valor:Number($("fV").value), fuente:$("fF").value}}); vista("amb"); }, "fErr");
+
+async function sosMetas() {
+  const ms = await api("/metas"), y = new Date().getFullYear();
+  const col = {cumplida:"vigente", en_camino:"vigente", atrasada:"vencido", sin_datos:""};
+  return `<div class="card"><h3>Nueva meta de reducción</h3><div class="row">
+    <div><label>Nombre</label><input id="gN"></div>
+    <div><label>Indicador</label><select id="gI"><option value="emisiones_tco2e">Emisiones (t CO₂e)</option>${AMB.map(t => `<option value="${t}">${NOMBRE[t]}</option>`).join("")}</select></div>
+    <div><label>Año base</label><input id="gAB" type="number" value="${y - 1}"></div><div><label>Total anual del año base</label><input id="gVB" type="number" step="any"></div>
+    <div><label>Año meta</label><input id="gAM" type="number" value="2030"></div><div><label>Reducción (%)</label><input id="gR" type="number" value="30"></div></div>
+    <button class="btn" onclick="crearMeta()">Crear meta</button> <span id="gmErr" class="err"></span></div>
+  <div class="card"><h3>Metas (${ms.length})</h3><table><tr><th>Meta</th><th>Base</th><th>Objetivo</th><th>Actual (12 m)</th><th>Logrado / esperado hoy</th><th>Estado</th><th></th></tr>${
+    ms.map(m => `<tr><td>${esc(m.nombre)}<br><small style="color:var(--mut)">${esc(NOMBRE[m.indicador] || "Emisiones (t CO₂e)")} · −${esc(m.reduccion_pct)}% al ${esc(m.anio_meta)}</small></td>
+      <td>${esc(m.valor_base)} (${esc(m.anio_base)})</td><td>${esc(m.valor_objetivo)}</td><td>${esc(m.valor_actual ?? "—")}</td>
+      <td>${m.reduccion_lograda_pct == null ? "—" : esc(m.reduccion_lograda_pct) + "% / " + esc(m.reduccion_esperada_pct) + "%"}</td>
+      <td><span class="tag ${col[m.estado]}">${esc(m.estado.replace("_", " "))}</span></td>
+      <td><button class="btn sec" onclick="borrarMeta(${Number(m.id)})">Eliminar</button></td></tr>`).join("")}</table></div>`;
+}
+const crearMeta = () => run(async () => { await api("/metas", {method:"POST", body:{nombre:$("gN").value, indicador:$("gI").value, anio_base:Number($("gAB").value),
+  valor_base:Number($("gVB").value), anio_meta:Number($("gAM").value), reduccion_pct:Number($("gR").value)}}); vista("amb"); }, "gmErr");
+const borrarMeta = id => confirm("¿Eliminar la meta?") && run(async () => { await fetch(API + "/metas/" + id, {method:"DELETE", headers:{Authorization:"Bearer " + token}}); vista("amb"); });
+
+async function sosSocial() {
+  const s = await api("/social"), g = await api("/reporte/gri");
+  const v = c => (g.find(x => x.indicador.startsWith(c)) || {}).valor;
+  return `<div class="grid">${kpi(v("Mujeres") == null ? null : v("Mujeres") + "%", "Mujeres en la dotación")}${kpi(v("Horas"), "Horas de capacitación por empleado")}
+    ${kpi(v("Reclamos") == null ? null : v("Reclamos") + "%", "Reclamos comunitarios resueltos")}</div>
+  <div class="card"><h3>Registrar indicador social</h3><div class="row">
+    <div><label>Periodo</label><input id="sP" type="month" value="${mesISO()}"></div>
+    <div><label>Indicador</label><select id="sT">${Object.entries(SOCIAL).map(([k, n]) => `<option value="${k}">${n}</option>`).join("")}</select></div>
+    <div><label>Valor</label><input id="sV" type="number" min="0" step="any"></div></div>
+    <button class="btn" onclick="guardarSocial()">Guardar</button> <span id="sErr" class="err"></span></div>
+  <div class="grid2">${["horas_capacitacion","inversion_comunitaria","reclamos_comunitarios"].map(t => `<div class="card"><h3>${SOCIAL[t]}</h3>${barras(Object.entries(s[t] || {}).map(([k, x]) => ({l: k.slice(2), v: Math.round(x)})))}</div>`).join("")}</div>`;
+}
+const guardarSocial = () => run(async () => { await api("/social", {method:"PUT", body:{periodo:$("sP").value, tipo:$("sT").value, valor:Number($("sV").value)}}); vista("amb"); }, "sErr");
+
+async function sosGri() {
+  const g = await api("/reporte/gri");
+  window._gri = g;
+  return `<div class="card"><h3>Índice de contenidos (GRI) con equivalencia NIIF S2</h3>
+    <p style="color:var(--mut);font-size:13px">Se completa solo con lo registrado en la plataforma. Las filas sin dato indican qué falta para poder reportar. Es una base de trabajo: no reemplaza la verificación ni el estándar oficial.</p>
+    <table><tr><th>Código</th><th>Indicador</th><th>Valor (12 m)</th><th>Unidad</th><th>Estado</th></tr>${
+    g.map(r => `<tr><td>${esc(r.codigo)}</td><td>${esc(r.indicador)}${r.nota ? `<br><small style="color:var(--mut)">${esc(r.nota)}</small>` : ""}</td>
+      <td>${r.valor == null ? "—" : esc(Number(r.valor).toLocaleString("es"))}</td><td>${esc(r.unidad)}</td>
+      <td><span class="tag ${r.reportable ? "vigente" : "por_vencer"}">${r.reportable ? "con dato" : "falta dato"}</span></td></tr>`).join("")}</table>
+    <br><button class="btn" onclick="descargarGri()">Descargar CSV</button></div>`;
+}
+function descargarGri() {
+  const cel = c => { let s = String(c ?? ""); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+  const filas = [["Codigo","Indicador","Valor","Unidad","Nota"], ...window._gri.map(r => [r.codigo, r.indicador, r.valor, r.unidad, r.nota])];
+  const blob = new Blob(["\uFEFF" + filas.map(f => f.map(cel).join(",")).join("\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "indice_gri.csv"; a.click(); URL.revokeObjectURL(a.href);
+}
+
+async function sosNorm() {
+  const ps = (await api("/plantillas?sector=" + yo.sector)).filter(p => p.clave.includes("sos") || p.clave.includes("amb"));
+  return `<div class="card"><h3>Checklists de sostenibilidad disponibles para ${esc(yo.pais === "peru" ? "Perú" : "Chile")}</h3>
+    <p style="color:var(--mut);font-size:13px">Prográmalos desde Auditorías. Cada "no cumple" crea un hallazgo con plan de acción.</p>
+    <table><tr><th>Checklist</th><th>Norma o estándar</th><th>Ítems</th></tr>${ps.map(p => `<tr><td>${esc(p.nombre)}</td><td>${esc(p.norma)}</td><td>${p.items.length}</td></tr>`).join("")}</table>
+    <br><button class="btn" onclick="vista('aud')">Ir a Auditorías</button></div>`;
+}
 if (token) iniciar().catch(salir);
 </script>
 </body>

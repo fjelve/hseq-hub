@@ -217,6 +217,144 @@ PLANTILLAS += [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Sostenibilidad. Resúmenes de requisitos; verificar contra el texto vigente.
+# ---------------------------------------------------------------------------
+PLANTILLAS += [
+    {
+        "clave": "sos-gistm",
+        "nombre": "Sostenibilidad minería: Estándar Global de Gestión de Relaves (GISTM)",
+        "norma": "GISTM",
+        "sector": "mineria",
+        "pais": "todos",
+        "items": [
+            ("Comunidades", "Se involucra a las comunidades afectadas y se consideran sus derechos y riesgos en las decisiones sobre el depósito.", True),
+            ("Conocimiento", "Existe una base de conocimiento integrada (geología, hidrología, geotecnia, ambiente y social) que respalda el diseño.", True),
+            ("Conocimiento", "Se evalúan múltiples alternativas de ubicación y tecnología, incluida la minimización de relaves.", False),
+            ("Diseño", "El diseño se basa en la consecuencia de falla y en criterios para el ciclo de vida completo, incluido el cierre.", True),
+            ("Diseño", "Se aplica el método observacional y un plan de monitoreo con indicadores y umbrales de acción.", True),
+            ("Gestión", "Hay un ejecutivo responsable designado para la seguridad de cada depósito.", True),
+            ("Gestión", "Existe un Ingeniero Responsable (EoR) designado para cada depósito, con contrato vigente.", True),
+            ("Gestión", "Un panel independiente de revisión de relaves (ITRB) revisa el diseño y la operación.", True),
+            ("Gestión", "Se mantiene un sistema de gestión con política, roles, presupuesto y revisión periódica de riesgos.", False),
+            ("Emergencias", "Hay un plan de respuesta a emergencias y de recuperación a largo plazo, probado con las partes interesadas.", True),
+            ("Divulgación", "Se divulga públicamente información del depósito, su riesgo y su gestión.", False),
+            ("Cierre", "El plan de cierre y post-cierre incluye responsabilidad financiera y monitoreo de largo plazo.", True),
+        ],
+    },
+    {
+        "clave": "sos-icmm",
+        "nombre": "Sostenibilidad minería: Principios de ICMM y buenas prácticas",
+        "norma": "ICMM",
+        "sector": "mineria",
+        "pais": "todos",
+        "items": [
+            ("Ética", "Políticas de ética, anticorrupción y transparencia implementadas y comunicadas.", False),
+            ("Riesgos", "Gestión de riesgos incluye aspectos ambientales, sociales y de gobernanza.", True),
+            ("Derechos humanos", "Se respetan los derechos humanos y los intereses de comunidades y pueblos indígenas, con diligencia debida.", True),
+            ("Biodiversidad", "La biodiversidad se considera en la planificación, con jerarquía de mitigación.", False),
+            ("Agua", "Gestión de agua con balance hídrico, metas y cuentas de uso a nivel de cuenca.", True),
+            ("Clima", "Se gestionan las emisiones de GEI y los riesgos climáticos físicos y de transición.", True),
+            ("Comunidades", "Mecanismo de reclamos accesible a las comunidades, con seguimiento de resolución.", True),
+            ("Reporte", "Se publica un reporte de sostenibilidad con verificación independiente del cumplimiento.", False),
+        ],
+    },
+    {
+        "clave": "sos-ghg-14064",
+        "nombre": "Sostenibilidad: Inventario de gases de efecto invernadero (ISO 14064 / GHG Protocol)",
+        "norma": "ISO 14064",
+        "sector": "todos",
+        "pais": "todos",
+        "items": [
+            ("Límites", "Se definieron los límites organizacionales (control operacional o participación) y operacionales.", True),
+            ("Fuentes", "Se identificaron las fuentes de alcance 1, 2 y las categorías relevantes de alcance 3.", True),
+            ("Datos", "Los datos de actividad (combustible, energía, residuos) tienen origen, responsable y registro.", True),
+            ("Factores", "Los factores de emisión provienen de fuentes oficiales vigentes y están documentados.", True),
+            ("Año base", "Hay año base definido y política de recálculo ante cambios significativos.", False),
+            ("Calidad", "Se aplican controles de calidad y se estiman las incertidumbres.", False),
+            ("Verificación", "El inventario fue verificado por una tercera parte cuando se requiere o se comunica externamente.", False),
+            ("Metas", "Existen metas de reducción con seguimiento y plan de acción.", False),
+        ],
+    },
+    {
+        "clave": "sos-iso50001",
+        "nombre": "Sostenibilidad: Gestión de la energía (ISO 50001)",
+        "norma": "ISO 50001",
+        "sector": "todos",
+        "pais": "todos",
+        "items": [
+            ("Política", "Política energética aprobada por la alta dirección y difundida.", False),
+            ("Revisión", "Revisión energética identifica los usos significativos de energía.", True),
+            ("Línea base", "Hay línea base energética e indicadores de desempeño (IDEn) definidos.", True),
+            ("Metas", "Objetivos y metas energéticas con planes de acción y responsables.", False),
+            ("Medición", "Los equipos de medición están calibrados y los datos se registran periódicamente.", False),
+            ("Compras", "Criterios de eficiencia energética en compras de equipos y diseño de proyectos.", False),
+        ],
+    },
+    {
+        "clave": "sos-niif-s1-s2",
+        "nombre": "Sostenibilidad: Preparación para reportar con NIIF S1 y S2",
+        "norma": "NIIF S1/S2",
+        "sector": "todos",
+        "pais": "todos",
+        "items": [
+            ("Gobernanza", "El directorio supervisa los riesgos y oportunidades de sostenibilidad y clima.", True),
+            ("Estrategia", "Se identificaron riesgos y oportunidades de sostenibilidad y su efecto financiero.", True),
+            ("Clima", "Se realizó un análisis de escenarios climáticos para evaluar resiliencia.", False),
+            ("Riesgos", "Los riesgos de sostenibilidad están integrados en la gestión de riesgos corporativa.", True),
+            ("Métricas", "Se miden emisiones de alcance 1, 2 y 3 con metodología documentada.", True),
+            ("Metas", "Hay metas relacionadas con el clima con seguimiento del avance.", False),
+            ("Datos", "Los datos de sostenibilidad tienen controles equivalentes a los de la información financiera.", False),
+        ],
+    },
+    {
+        "clave": "sos-social-comunidades",
+        "nombre": "Sostenibilidad: Relación con comunidades y pueblos indígenas",
+        "norma": "OIT 169 / Social",
+        "sector": "todos",
+        "pais": "todos",
+        "items": [
+            ("Consulta", "Se identificaron los pueblos indígenas y comunidades afectadas y los procesos de consulta aplicables.", True),
+            ("Participación", "Hay un plan de relacionamiento comunitario con registro de reuniones y compromisos.", False),
+            ("Reclamos", "Existe un mecanismo de reclamos con plazos de respuesta y seguimiento.", True),
+            ("Compromisos", "Los compromisos adquiridos con la comunidad están registrados y con responsable.", False),
+            ("Empleo local", "Se promueve el empleo y la contratación de proveedores locales con indicadores.", False),
+            ("Patrimonio", "Se protege el patrimonio cultural y arqueológico en el área de influencia.", False),
+        ],
+    },
+    {
+        "clave": "cl-sos-clima-rep",
+        "nombre": "Chile: Cambio climático (Ley 21.455) y Responsabilidad Extendida del Productor (Ley 20.920)",
+        "norma": "Ley 21.455 / Ley 20.920 (Chile)",
+        "sector": "todos",
+        "pais": "chile",
+        "items": [
+            ("Ley 21.455", "Se verificó si la empresa está obligada a reportar emisiones o a presentar planes de mitigación según los umbrales vigentes.", True),
+            ("Ley 21.455", "Se identificaron los instrumentos sectoriales de adaptación y mitigación que aplican a la actividad.", False),
+            ("RETC", "Las emisiones y residuos se declaran en el registro oficial (RETC) cuando corresponde.", True),
+            ("Ley REP", "Se determinó si la empresa es productora de un producto prioritario (envases, neumáticos, baterías, aceites, aparatos eléctricos).", True),
+            ("Ley REP", "La empresa está inscrita en un sistema de gestión y cumple las metas de recolección y valorización.", True),
+            ("Residuos", "Se mantiene trazabilidad y declaración de los residuos generados.", False),
+        ],
+    },
+    {
+        "clave": "pe-sos-clima-residuos",
+        "nombre": "Perú: Cambio climático (Ley 30754) y gestión de residuos sólidos",
+        "norma": "Ley 30754 / DL 1278 (Perú)",
+        "sector": "todos",
+        "pais": "peru",
+        "items": [
+            ("Ley 30754", "Se verificó si la empresa tiene obligaciones de reporte de emisiones o de medidas de mitigación según su sector.", True),
+            ("HC Perú", "Se evaluó la participación en la herramienta Huella de Carbono Perú y se guardan los reportes.", False),
+            ("DL 1278", "Se presenta la declaración anual de manejo de residuos sólidos cuando corresponde.", True),
+            ("DL 1278", "Los residuos peligrosos se transportan con manifiesto y los gestiona una empresa autorizada.", True),
+            ("Residuos", "Existe un plan de minimización y manejo de residuos con segregación en la fuente.", False),
+            ("Plásticos", "Se cumplen las restricciones de plásticos de un solo uso aplicables.", False),
+        ],
+    },
+]
+
+
 def seed_plantillas(db: Session) -> int:
     """Inserta las plantillas globales que aún no existan. Devuelve cuántas creó."""
     existentes = {c for (c,) in db.query(PlantillaAuditoria.clave)

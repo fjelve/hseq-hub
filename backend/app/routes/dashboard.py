@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import current_user
 from app.database import get_db
-from app.models import Auditoria, Hallazgo, RequisitoLegal, Usuario
+from app.models import Auditoria, Empresa, Hallazgo, MetaSostenibilidad, RequisitoLegal, Usuario
+from app.services import sostenibilidad as sv
 from app.routes.incidentes import kpis_seguridad
 from app.routes.legal import POR_VENCER_DIAS
 
@@ -47,4 +48,7 @@ def dashboard(user: Usuario = Depends(current_user), db: Session = Depends(get_d
         "requisitos_por_vencer": reqs.filter(RequisitoLegal.fecha_vencimiento >= hoy,
                                              RequisitoLegal.fecha_vencimiento <= hoy + timedelta(days=POR_VENCER_DIAS)).count(),
         "seguridad": kpis_seguridad(db, eid),
+        "emisiones": sv.calcular_emisiones(db, db.get(Empresa, eid))["total_12m"],
+        "metas": [sv.estado_meta(db, db.get(Empresa, eid), m)["estado"]
+                  for m in db.query(MetaSostenibilidad).filter_by(empresa_id=eid)],
     }

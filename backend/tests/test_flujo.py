@@ -150,3 +150,45 @@ def test_incidente_ctp_abre_investigacion(client):
     assert leve.json()["hallazgo_id"] is None
     assert client.post(f"{P}/incidentes", headers=h, json={
         "tipo": "casi_accidente", "dias_perdidos": 2}).status_code == 422
+
+
+def test_sostenibilidad_emisiones_metas_gri(client):
+    h = registrar(client, "Sos Min", "sos@example.com", "mineria", "chile")
+    # sin datos: no hay emisiones ni valores reportables
+    assert client.get(f"{P}/emisiones", headers=h).json()["total_12m"]["total"] == 0
+    # 1000 L diésel (alcance 1) y 10.000 kWh (alcance 2), factores referenciales Chile
+    for tipo, v in [("combustible_l", 1000), ("energia_kwh", 10000)]:
+        assert client.put(f"{P}/ambiental", headers=h, json={"periodo": "2026-01", "tipo": tipo, "valor": v}).status_code == 200
+    e = client.get(f"{P}/emisiones", headers=h).json()
+    assert e["total_12m"]["alcance1"] == 2.68 and e["total_12m"]["alcance2"] == 3.5
+    assert all(f["referencial"] for f in e["factores"])
+    # factor propio reemplaza al referencial
+    assert client.put(f"{P}/factores", headers=h, json={"clave": "energia_kwh", "valor": 0.2, "fuente": "Factor oficial 2025"}).status_code == 200
+    e = client.get(f"{P}/emisiones", headers=h).json()
+    assert e["total_12m"]["alcance2"] == 2.0
+    assert not next(f for f in e["factores"] if f["clave"] == "energia_kwh")["referencial"]
+    # metas
+    assert client.post(f"{P}/metas", headers=h, json={"nombre": "Meta mala", "indicador": "agua_m3", "anio_base": 2030,
+                       "valor_base": 100, "anio_meta": 2025, "reduccion_pct": 10}).status_code == 422
+    m = client.post(f"{P}/metas", headers=h, json={"nombre": "Menos emisiones", "indicador": "emisiones_tco2e",
+                    "anio_base": 2025, "valor_base": 10, "anio_meta": 2030, "reduccion_pct": 50}).json()
+    assert m["valor_objetivo"] == 5 and m["valor_actual"] == 4.68 and m["estado"] == "cumplida"
+    # social y validación
+    client.put(f"{P}/social", headers=h, json={"periodo": "2026-01", "tipo": "empleados_total", "valor": 100})
+    assert client.put(f"{P}/social", headers=h, json={"periodo": "2026-01", "tipo": "mujeres_empleadas", "valor": 150}).status_code == 422
+    client.put(f"{P}/social", headers=h, json={"periodo": "2026-01", "tipo": "mujeres_empleadas", "valor": 20})
+    gri = {(g["codigo"], g["indicador"]): g for g in client.get(f"{P}/reporte/gri", headers=h).json()}
+    assert gri[("GRI 405-1", "Mujeres en la dotación")]["valor"] == 20.0
+    assert gri[("GRI 303-5", "Consumo de agua")]["reportable"] is False
+    # aislamiento: otra empresa no ve estas metas
+    h2 = registrar(client, "Sos Otra", "sos2@example.com", "industria", "peru")
+    assert client.get(f"{P}/metas", headers=h2).json() == []
+
+
+def test_plantillas_sostenibilidad_por_pais(client):
+    cl = registrar(client, "Sos CL", "soscl@example.com", "mineria", "chile")
+    pe = registrar(client, "Sos PE", "sospe@example.com", "industria", "peru")
+    n_cl = {p["clave"] for p in client.get(f"{P}/plantillas", headers=cl).json()}
+    n_pe = {p["clave"] for p in client.get(f"{P}/plantillas", params={"sector": "industria"}, headers=pe).json()}
+    assert {"sos-gistm", "cl-sos-clima-rep", "sos-ghg-14064"} <= n_cl and "pe-sos-clima-residuos" not in n_cl
+    assert "sos-gistm" not in n_pe and {"pe-sos-clima-residuos", "sos-niif-s1-s2"} <= n_pe

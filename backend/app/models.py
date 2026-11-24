@@ -178,3 +178,36 @@ class IndicadorAmbiental(Base):
     periodo = Column(String(7), nullable=False)
     tipo = Column(String(30), nullable=False)  # energia_kwh | agua_m3 | residuos_peligrosos_kg | residuos_no_peligrosos_kg | combustible_l
     valor = Column(Float, nullable=False)
+
+
+class FactorEmpresa(Base):
+    """Factor de emisión propio de la empresa (reemplaza el referencial)."""
+    __tablename__ = "factores_empresa"
+    __table_args__ = (UniqueConstraint("empresa_id", "clave"),)
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    clave = Column(String(30), nullable=False)  # = tipo de indicador ambiental
+    valor = Column(Float, nullable=False)  # kg CO2e por unidad
+    fuente = Column(String(250), default="")
+
+
+class MetaSostenibilidad(Base):
+    __tablename__ = "metas_sostenibilidad"
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    nombre = Column(String(200), nullable=False)
+    indicador = Column(String(30), nullable=False)  # emisiones_tco2e o un tipo de indicador ambiental
+    anio_base = Column(Integer, nullable=False)
+    valor_base = Column(Float, nullable=False)  # total anual del año base
+    anio_meta = Column(Integer, nullable=False)
+    reduccion_pct = Column(Float, nullable=False)
+
+
+class IndicadorSocial(Base):
+    __tablename__ = "indicadores_sociales"
+    __table_args__ = (UniqueConstraint("empresa_id", "periodo", "tipo"),)
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    periodo = Column(String(7), nullable=False)
+    tipo = Column(String(30), nullable=False)
+    valor = Column(Float, nullable=False)
