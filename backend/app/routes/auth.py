@@ -16,7 +16,7 @@ def registro(data: RegistroIn, db: Session = Depends(get_db)):
     email = data.email.lower()
     if db.query(Usuario).filter(Usuario.email == email).first():
         raise HTTPException(409, "El correo ya está registrado")
-    emp = Empresa(nombre=data.empresa, sector=data.sector)
+    emp = Empresa(nombre=data.empresa, sector=data.sector, pais=data.pais)
     db.add(emp)
     db.flush()
     user = Usuario(empresa_id=emp.id, nombre=data.nombre, email=email,
@@ -38,7 +38,7 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 def me(user: Usuario = Depends(current_user), db: Session = Depends(get_db)):
     emp = db.get(Empresa, user.empresa_id)
     return {"id": user.id, "nombre": user.nombre, "email": user.email, "rol": user.rol,
-            "empresa": emp.nombre, "sector": emp.sector}
+            "empresa": emp.nombre, "sector": emp.sector, "pais": emp.pais}
 
 
 @router.get("/usuarios", response_model=list[UsuarioOut])

@@ -10,6 +10,7 @@ Estado = Literal["abierto", "en_proceso", "en_verificacion", "cerrado"]
 class RegistroIn(BaseModel):
     empresa: str = Field(min_length=2, max_length=200)
     sector: Literal["mineria", "industria"]
+    pais: Literal["chile", "peru"]
     nombre: str = Field(min_length=2, max_length=150)
     email: EmailStr
     password: str = Field(min_length=10, max_length=72)
@@ -112,6 +113,7 @@ class PlantillaOut(BaseModel):
     nombre: str
     norma: str
     sector: str
+    pais: str
     items: list[ItemOut] = []
 
 

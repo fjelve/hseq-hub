@@ -39,6 +39,7 @@
   <div id="regForm" class="hidden">
     <label>Empresa</label><input id="rEmp">
     <label>Sector</label><select id="rSec"><option value="mineria">Minería</option><option value="industria">Industria</option></select>
+    <label>País</label><select id="rPai"><option value="chile">Chile</option><option value="peru">Perú</option></select>
     <label>Tu nombre</label><input id="rNom">
     <label>Correo</label><input id="rEmail" type="email">
     <label>Contraseña (mín. 10 caracteres)</label><input id="rPass" type="password">
@@ -88,7 +89,7 @@ async function auth(url, init) {
 }
 const login = () => auth("/auth/login", {method:"POST", body:new URLSearchParams({username:$("lEmail").value, password:$("lPass").value})});
 const registro = () => auth("/auth/registro", {method:"POST", headers:{"Content-Type":"application/json"},
-  body: JSON.stringify({empresa:$("rEmp").value, sector:$("rSec").value, nombre:$("rNom").value, email:$("rEmail").value, password:$("rPass").value})});
+  body: JSON.stringify({empresa:$("rEmp").value, sector:$("rSec").value, pais:$("rPai").value, nombre:$("rNom").value, email:$("rEmail").value, password:$("rPass").value})});
 function salir() { sessionStorage.removeItem("tk"); token = null; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
 async function iniciar() {
   yo = await api("/auth/me");

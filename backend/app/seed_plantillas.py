@@ -97,6 +97,126 @@ PLANTILLAS = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Normativa por país. Resumen de requisitos de cada marco, sin citar artículos.
+# Verificar siempre contra el texto vigente y sus modificaciones.
+# ---------------------------------------------------------------------------
+PLANTILLAS += [
+    {
+        "clave": "cl-min-ds132",
+        "nombre": "Chile minería: Reglamento de Seguridad Minera (DS 132)",
+        "norma": "DS 132 (Chile)",
+        "sector": "mineria",
+        "pais": "chile",
+        "items": [
+            ("SGSST", "Sistema de gestión de seguridad y salud ocupacional implementado y aprobado por el nivel de dirección.", True),
+            ("Reglamento", "Reglamento interno de higiene y seguridad vigente y difundido a los trabajadores.", False),
+            ("Estudio", "Matriz de identificación de peligros y evaluación de riesgos (IPER) actualizada por faena.", True),
+            ("Procedimientos", "Procedimientos de trabajo seguro para tareas críticas conocidos por quienes las ejecutan.", True),
+            ("Capacitación", "Inducción de ingreso y capacitación específica registradas por trabajador y contratista.", False),
+            ("Emergencias", "Plan de emergencia de la faena con simulacros según programa.", True),
+            ("Investigación", "Accidentes graves y fatales informados a la autoridad y con investigación documentada.", True),
+            ("Contratistas", "Gestión de seguridad de contratistas y subcontratistas con verificación de cumplimiento.", False),
+            ("Estabilidad", "Estabilidad de taludes, labores subterráneas y botaderos monitoreada con registros.", True),
+            ("Explosivos", "Almacenamiento, transporte y uso de explosivos conforme a procedimiento y personal autorizado.", True),
+            ("Equipos", "Equipos móviles y fijos con mantención al día y dispositivos de seguridad operativos.", False),
+            ("Salud", "Exámenes de salud ocupacional y de altura geográfica vigentes según exposición.", False),
+        ],
+    },
+    {
+        "clave": "cl-legal-laboral",
+        "nombre": "Chile: Seguridad laboral (Ley 16.744 y DS 594, DS 40, DS 54)",
+        "norma": "Ley 16.744 / DS 594 (Chile)",
+        "sector": "todos",
+        "pais": "chile",
+        "items": [
+            ("Ley 16.744", "Empresa adherida a un organismo administrador del seguro (mutualidad o ISL) y con denuncias de accidentes al día.", True),
+            ("DS 40", "Obligación de informar los riesgos laborales (ODI) entregada y registrada por trabajador.", False),
+            ("DS 54", "Comité Paritario de Higiene y Seguridad constituido donde corresponde, con actas y reuniones vigentes.", False),
+            ("Depto.", "Departamento de prevención de riesgos o experto a cargo, según tamaño de la empresa.", False),
+            ("DS 594", "Condiciones sanitarias y ambientales básicas: servicios higiénicos, agua potable, comedores.", False),
+            ("DS 594", "Agentes químicos, ruido y otros agentes medidos y bajo los límites permisibles.", True),
+            ("Protocolos", "Protocolos del Minsal aplicables (por ejemplo PREXOR, TMERT, sílice) implementados.", False),
+            ("Ley 21.643", "Protocolo de prevención del acoso y la violencia en el trabajo implementado y difundido.", False),
+        ],
+    },
+    {
+        "clave": "cl-amb-relaves-cierre",
+        "nombre": "Chile minería: Relaves (DS 248) y cierre de faenas (Ley 20.551)",
+        "norma": "DS 248 / Ley 20.551 (Chile)",
+        "sector": "mineria",
+        "pais": "chile",
+        "items": [
+            ("DS 248", "Depósito de relaves con proyecto aprobado y operación conforme al mismo.", True),
+            ("DS 248", "Inspecciones y monitoreo del depósito (estabilidad, niveles, filtraciones) registrados.", True),
+            ("DS 248", "Plan de emergencia del depósito de relaves con simulacros.", True),
+            ("Ley 20.551", "Plan de cierre de faena aprobado, con garantía financiera y actualización en los plazos exigidos.", True),
+            ("RCA", "Condiciones y compromisos de la resolución de calificación ambiental (RCA) bajo seguimiento.", True),
+            ("SMA", "Reportes de monitoreo a la Superintendencia del Medio Ambiente entregados en plazo.", False),
+            ("Aguas", "Derechos de aprovechamiento de aguas y caudales extraídos dentro de lo autorizado.", False),
+            ("Residuos", "Residuos peligrosos declarados en el sistema oficial y entregados a destinatario autorizado.", True),
+        ],
+    },
+    {
+        "clave": "pe-min-ds024",
+        "nombre": "Perú minería: Reglamento de Seguridad y Salud Ocupacional en Minería (DS 024-2016-EM)",
+        "norma": "DS 024-2016-EM (Perú)",
+        "sector": "mineria",
+        "pais": "peru",
+        "items": [
+            ("SGSST", "Sistema de gestión de seguridad y salud ocupacional implementado, con política y objetivos.", True),
+            ("IPERC", "Matriz IPERC por actividad actualizada y revisada por los trabajadores involucrados.", True),
+            ("Comité", "Comité de Seguridad y Salud Ocupacional constituido, con reuniones y actas.", False),
+            ("Programa", "Programa anual de seguridad y salud ocupacional aprobado y con avance medido.", False),
+            ("Capacitación", "Programa de capacitación anual ejecutado y registrado, incluido personal contratista.", False),
+            ("Permisos", "Permisos de trabajo de alto riesgo (altura, espacios confinados, trabajo en caliente, energías peligrosas).", True),
+            ("Bloqueo", "Procedimiento de bloqueo y etiquetado aplicado antes de intervenir equipos.", True),
+            ("Emergencias", "Plan de contingencia y simulacros realizados según programa.", True),
+            ("Investigación", "Incidentes y accidentes investigados, reportados al ente fiscalizador y con acciones definidas.", True),
+            ("Estabilidad", "Control de estabilidad de taludes, labores subterráneas y ventilación con registros.", True),
+            ("Salud", "Exámenes médicos ocupacionales vigentes (ingreso, periódicos, retiro).", False),
+            ("Contratistas", "Empresas contratistas mineras con verificación de cumplimiento del reglamento.", False),
+        ],
+    },
+    {
+        "clave": "pe-legal-ley29783",
+        "nombre": "Perú: Ley 29783 de Seguridad y Salud en el Trabajo y su reglamento",
+        "norma": "Ley 29783 / DS 005-2012-TR (Perú)",
+        "sector": "todos",
+        "pais": "peru",
+        "items": [
+            ("Política", "Política de SST documentada, firmada por la alta dirección y difundida.", False),
+            ("Reglamento", "Reglamento interno de seguridad y salud en el trabajo vigente y entregado.", False),
+            ("Comité", "Comité o supervisor de SST elegido según el número de trabajadores, con actas.", True),
+            ("IPERC", "Identificación de peligros y evaluación de riesgos y controles (IPERC) actualizada.", True),
+            ("Registros", "Registros obligatorios de accidentes, enfermedades, monitoreos y capacitaciones al día.", True),
+            ("Capacitación", "Cuatro capacitaciones al año como mínimo, con constancia por trabajador.", False),
+            ("Salud", "Exámenes médicos ocupacionales vigentes según el riesgo del puesto.", False),
+            ("Auditoría", "Auditoría del sistema de gestión de SST realizada en la periodicidad exigida.", False),
+            ("EPP", "Equipos de protección personal entregados con registro y adecuados al riesgo.", False),
+            ("Emergencias", "Plan de emergencia y simulacros al menos según lo exigido.", True),
+        ],
+    },
+    {
+        "clave": "pe-amb-min",
+        "nombre": "Perú minería: Ambiental (DS 040-2014-EM) y cierre de minas (Ley 28090)",
+        "norma": "DS 040-2014-EM / Ley 28090 (Perú)",
+        "sector": "mineria",
+        "pais": "peru",
+        "items": [
+            ("IGA", "Instrumento de gestión ambiental aprobado y compromisos en cumplimiento.", True),
+            ("OEFA", "Reportes de monitoreo ambiental presentados al OEFA en los plazos.", True),
+            ("LMP/ECA", "Efluentes y calidad de aire y agua dentro de los límites máximos permisibles y estándares de calidad.", True),
+            ("Relaves", "Depósitos de relaves y botaderos con inspecciones geotécnicas y plan de contingencia.", True),
+            ("Cierre", "Plan de cierre de minas aprobado, con garantía ambiental vigente.", True),
+            ("Residuos", "Residuos peligrosos almacenados y entregados a una empresa operadora autorizada.", True),
+            ("Social", "Compromisos de participación ciudadana y relaciones con la comunidad documentados.", False),
+            ("Agua", "Autorizaciones de uso y vertimiento de agua vigentes.", False),
+        ],
+    },
+]
+
+
 def seed_plantillas(db: Session) -> int:
     """Inserta las plantillas globales que aún no existan. Devuelve cuántas creó."""
     existentes = {c for (c,) in db.query(PlantillaAuditoria.clave)
@@ -106,7 +226,8 @@ def seed_plantillas(db: Session) -> int:
         if p["clave"] in existentes:
             continue
         pl = PlantillaAuditoria(empresa_id=None, clave=p["clave"], nombre=p["nombre"],
-                                norma=p["norma"], sector=p["sector"])
+                                norma=p["norma"], sector=p["sector"],
+                                pais=p.get("pais", "todos"))
         for i, (cl, tx, cr) in enumerate(p["items"], start=1):
             pl.items.append(PlantillaItem(orden=i, clausula=cl, texto=tx, critico=cr))
         db.add(pl)

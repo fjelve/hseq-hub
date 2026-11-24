@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import current_user, require_roles
 from app.database import get_db
-from app.models import Auditoria, PlantillaAuditoria, Respuesta, Usuario
+from app.models import Auditoria, Empresa, PlantillaAuditoria, Respuesta, Usuario
 from app.routes.hallazgos import crear_hallazgo, validar_usuario
 from app.schemas import AuditoriaIn, AuditoriaOut, PlantillaOut, RespuestaIn
 
@@ -21,6 +21,8 @@ def plantillas(sector: Optional[str] = None, user: Usuario = Depends(current_use
     q = db.query(PlantillaAuditoria).filter(
         or_(PlantillaAuditoria.empresa_id.is_(None),
             PlantillaAuditoria.empresa_id == user.empresa_id))
+    emp = db.get(Empresa, user.empresa_id)
+    q = q.filter(PlantillaAuditoria.pais.in_([emp.pais, "todos"]))
     if sector:
         q = q.filter(PlantillaAuditoria.sector.in_([sector, "todos"]))
     return q.order_by(PlantillaAuditoria.id).all()

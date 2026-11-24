@@ -17,6 +17,7 @@ class Empresa(Base):
     id = Column(Integer, primary_key=True)
     nombre = Column(String(200), nullable=False)
     sector = Column(String(30), nullable=False, default="mineria")  # mineria | industria
+    pais = Column(String(10), nullable=False, default="chile")  # chile | peru
     creada_en = Column(DateTime, default=_now)
 
 
@@ -83,6 +84,7 @@ class PlantillaAuditoria(Base):
     nombre = Column(String(200), nullable=False)
     norma = Column(String(40), nullable=False)
     sector = Column(String(30), nullable=False)  # mineria | industria | todos
+    pais = Column(String(10), nullable=False, default="todos")  # chile | peru | todos
 
     items = relationship("PlantillaItem", back_populates="plantilla",
                          cascade="all, delete-orphan", order_by="PlantillaItem.orden")

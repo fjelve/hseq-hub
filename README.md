@@ -5,7 +5,7 @@ auditoría → hallazgo → acción correctiva (CAPA) → verificación → cier
 
 ## MVP incluido
 - Registro de empresa (tenant) y usuarios con roles `admin`, `auditor`, `responsable`.
-- Checklists de partida: riesgos críticos en minería, ambiental/relaves, seguridad en planta, ISO 9001, ISO 14001.
+- Checklists de partida: ISO 45001/14001/9001 (riesgos críticos, relaves, planta) y normativa por país. Chile: DS 132, Ley 16.744/DS 594, DS 248/Ley 20.551. Perú: DS 024-2016-EM, Ley 29783, DS 040-2014-EM/Ley 28090. Cada empresa ve solo los de su país.
 - Al cerrar una auditoría: puntaje de cumplimiento y un hallazgo automático por cada "no cumple", con plazo según severidad (crítica 7 d, alta 15 d, media 30 d, baja 60 d).
 - CAPA: causa raíz, acciones con evidencia, cierre solo con acciones completas y verificación de eficacia.
 - Alertas automáticas por correo de hallazgos por vencer y vencidos (tarea periódica).

@@ -22,9 +22,9 @@ def client():
         yield c
 
 
-def registrar(client, nombre, email, sector="mineria"):
+def registrar(client, nombre, email, sector="mineria", pais="chile"):
     r = client.post(f"{P}/auth/registro", json={
-        "empresa": nombre, "sector": sector, "nombre": "Admin",
+        "empresa": nombre, "sector": sector, "pais": pais, "nombre": "Admin",
         "email": email, "password": "ClaveSegura123"})
     assert r.status_code == 201, r.text
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
@@ -76,6 +76,16 @@ def test_flujo_auditoria_a_capa(client):
 
     d = client.get(f"{P}/dashboard", headers=h).json()
     assert d["hallazgos_abiertos"] == 1 and d["cumplimiento_promedio"] == cerrada["puntaje"]
+
+
+def test_plantillas_por_pais(client):
+    cl = registrar(client, "Minera CL", "cl@example.com", "mineria", "chile")
+    pe = registrar(client, "Minera PE", "pe@example.com", "mineria", "peru")
+    cl_n = {p["norma"] for p in client.get(f"{P}/plantillas", headers=cl).json()}
+    pe_n = {p["norma"] for p in client.get(f"{P}/plantillas", headers=pe).json()}
+    assert "DS 132 (Chile)" in cl_n and "DS 024-2016-EM (Perú)" not in cl_n
+    assert "DS 024-2016-EM (Perú)" in pe_n and "DS 132 (Chile)" not in pe_n
+    assert "ISO 45001" in cl_n and "ISO 45001" in pe_n  # las genéricas aplican a ambos
 
 
 def test_aislamiento_entre_empresas(client):
