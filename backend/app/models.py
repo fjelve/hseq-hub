@@ -1,7 +1,7 @@
 from datetime import datetime, date
 
 from sqlalchemy import (
-    Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint,
+    Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -130,3 +130,51 @@ class Respuesta(Base):
 
     auditoria = relationship("Auditoria", back_populates="respuestas")
     item = relationship("PlantillaItem")
+
+
+class Incidente(Base):
+    __tablename__ = "incidentes"
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    fecha = Column(Date, nullable=False, default=date.today)
+    # accidente_ctp = con tiempo perdido | accidente_stp = sin tiempo perdido
+    tipo = Column(String(20), nullable=False)  # accidente_ctp | accidente_stp | casi_accidente | ambiental | dano_propiedad
+    severidad = Column(String(10), default="media")
+    area = Column(String(120), default="")
+    descripcion = Column(Text, default="")
+    dias_perdidos = Column(Integer, default=0)
+    hallazgo_id = Column(Integer, ForeignKey("hallazgos.id"), nullable=True)
+    creado_en = Column(DateTime, default=_now)
+
+
+class HorasTrabajadas(Base):
+    __tablename__ = "horas_trabajadas"
+    __table_args__ = (UniqueConstraint("empresa_id", "periodo"),)
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    periodo = Column(String(7), nullable=False)  # YYYY-MM
+    horas = Column(Integer, nullable=False)
+
+
+class RequisitoLegal(Base):
+    """Permisos, licencias, certificaciones y monitoreos con vencimiento."""
+    __tablename__ = "requisitos_legales"
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    nombre = Column(String(250), nullable=False)
+    tipo = Column(String(20), default="permiso")  # permiso | licencia | certificacion | monitoreo | norma
+    entidad = Column(String(150), default="")
+    responsable_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    fecha_vencimiento = Column(Date, nullable=True)
+    notas = Column(Text, default="")
+    notificado = Column(Boolean, default=False)
+
+
+class IndicadorAmbiental(Base):
+    __tablename__ = "indicadores_ambientales"
+    __table_args__ = (UniqueConstraint("empresa_id", "periodo", "tipo"),)
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    periodo = Column(String(7), nullable=False)
+    tipo = Column(String(30), nullable=False)  # energia_kwh | agua_m3 | residuos_peligrosos_kg | residuos_no_peligrosos_kg | combustible_l
+    valor = Column(Float, nullable=False)

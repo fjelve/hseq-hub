@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import SessionLocal, create_tables
-from app.routes import auditorias, dashboard, hallazgos
+from app.routes import ambiental, auditorias, dashboard, demo, hallazgos, incidentes, legal
 from app.routes.auth import router as auth_router
 from app.seed_plantillas import seed_plantillas
 from app.services.alertas import bucle_alertas
@@ -41,6 +41,10 @@ app.include_router(auth_router, prefix=PREFIX, tags=["Autenticación"])
 app.include_router(hallazgos.router, prefix=PREFIX)
 app.include_router(auditorias.router, prefix=PREFIX)
 app.include_router(dashboard.router, prefix=PREFIX)
+app.include_router(incidentes.router, prefix=PREFIX)
+app.include_router(legal.router, prefix=PREFIX)
+app.include_router(ambiental.router, prefix=PREFIX)
+app.include_router(demo.router, prefix=PREFIX)
 
 
 @app.get("/health")

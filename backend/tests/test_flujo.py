@@ -121,3 +121,32 @@ def test_alertas_vencidos(client):
         db.close()
     assert client.get(f"{P}/hallazgos", params={"solo_vencidos": True}, headers=h).json()[0]["vencido"]
 
+
+
+def test_demo_incidentes_requisitos_dashboard(client):
+    h = registrar(client, "Demo Min", "demo@example.com", "mineria", "peru")
+    assert client.post(f"{P}/demo/cargar", headers=h).status_code == 201
+    assert client.post(f"{P}/demo/cargar", headers=h).status_code == 409  # solo cuentas vacías
+    d = client.get(f"{P}/dashboard", headers=h).json()
+    s = d["seguridad"]
+    assert s["horas_12m"] > 0 and s["indice_frecuencia"] is not None
+    assert s["accidentes_ctp_12m"] == 2 and s["dias_perdidos_12m"] == 9
+    assert s["dias_sin_accidente_ctp"] == 68
+    assert len(d["tendencia_cumplimiento"]) == 4
+    assert d["requisitos_vencidos"] >= 1 and d["requisitos_por_vencer"] >= 1
+    reqs = client.get(f"{P}/requisitos", headers=h).json()
+    assert {r["estado"] for r in reqs} >= {"vencido", "por_vencer", "vigente"}
+    assert any(r["entidad"] == "OEFA" for r in reqs)
+    amb = client.get(f"{P}/ambiental", headers=h).json()
+    assert len(amb["agua_m3"]) == 12
+
+
+def test_incidente_ctp_abre_investigacion(client):
+    h = registrar(client, "Ind Inc", "inc@example.com", "industria", "chile")
+    r = client.post(f"{P}/incidentes", headers=h, json={
+        "tipo": "accidente_ctp", "severidad": "alta", "dias_perdidos": 4, "area": "Producción"})
+    assert r.status_code == 201 and r.json()["hallazgo_id"]
+    leve = client.post(f"{P}/incidentes", headers=h, json={"tipo": "casi_accidente", "severidad": "baja"})
+    assert leve.json()["hallazgo_id"] is None
+    assert client.post(f"{P}/incidentes", headers=h, json={
+        "tipo": "casi_accidente", "dias_perdidos": 2}).status_code == 422

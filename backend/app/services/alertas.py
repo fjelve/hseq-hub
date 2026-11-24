@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models import Hallazgo, Usuario
+from app.models import Hallazgo, RequisitoLegal, Usuario
 
 log = logging.getLogger("hseq.alertas")
 
@@ -64,6 +64,26 @@ def revisar_vencimientos(db: Session, hoy: date | None = None) -> list[dict]:
     return alertas
 
 
+def revisar_requisitos(db: Session, hoy: date | None = None) -> list[dict]:
+    """Avisa permisos y certificaciones por vencer (30 días) o vencidos. Una vez por vencimiento."""
+    hoy = hoy or date.today()
+    alertas = []
+    rs = (db.query(RequisitoLegal).filter(RequisitoLegal.fecha_vencimiento.isnot(None),
+                                          RequisitoLegal.fecha_vencimiento <= hoy + timedelta(days=30),
+                                          RequisitoLegal.notificado.is_(False)).all())
+    for r in rs:
+        resp = db.get(Usuario, r.responsable_id) if r.responsable_id else None
+        destinos = [resp.email] if resp else [u.email for u in db.query(Usuario).filter(
+            Usuario.empresa_id == r.empresa_id, Usuario.rol == "admin", Usuario.activo.is_(True))]
+        tipo = "VENCIDO" if r.fecha_vencimiento < hoy else "por vencer"
+        for d in destinos:
+            _enviar(d, f"[HSEQ] {r.nombre}: {tipo}", f"{r.nombre}\nEntidad: {r.entidad}\nVence: {r.fecha_vencimiento}")
+        r.notificado = True
+        alertas.append({"requisito": r.nombre, "tipo": tipo, "destinos": destinos})
+    db.commit()
+    return alertas
+
+
 async def bucle_alertas():
     intervalo = get_settings().ALERT_INTERVAL_MINUTES * 60
     while True:
@@ -71,6 +91,7 @@ async def bucle_alertas():
             db = SessionLocal()
             try:
                 await asyncio.to_thread(revisar_vencimientos, db)
+                await asyncio.to_thread(revisar_requisitos, db)
             finally:
                 db.close()
         except Exception:
