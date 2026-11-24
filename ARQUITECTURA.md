@@ -135,7 +135,7 @@ Consumos mensuales ─► × factor de emisión ─► t CO2e por alcance 1, 2, 
 | Bitácora inmutable | Cadena SHA-256 por empresa. Disparadores en PostgreSQL y SQLite impiden UPDATE y DELETE. `GET /bitacora/verificar` detecta alteraciones y entradas faltantes en medio de la cadena |
 | Migraciones | Alembic con migración inicial `0001`. El contenedor migra al arrancar y adopta bases existentes sin recrearlas |
 
-## 6. Despliegue (preparado, sin probar en el VPS)
+## 6. Despliegue (en producción: https://hseq.andrema.tech)
 
 ```
 Local (Kiro) ─► git push ─► GitHub Action: pruebas ─► scp + ssh (clave ED25519) ─► /var/www/hseq ─► docker compose up -d --build
@@ -148,7 +148,7 @@ Local (Kiro) ─► git push ─► GitHub Action: pruebas ─► scp + ssh (cla
 | `docker-compose.yml` | `hseq_api` publicado solo en `127.0.0.1:8003` y `hseq_db` sin puerto expuesto. Valida con `docker compose config` |
 | Frontend | Lo sirve la propia API en el mismo origen (como Centinela y Radar), sin CORS ni URL configurable |
 | Nginx | `deploy/hseq.andrema.tech.conf` (el dominio es una propuesta) |
-| Pasos manuales | DNS, archivo `.env` en el VPS, Nginx y respaldos. Ver `DEPLOY.md` |
+| Estado | Desplegado en el VPS con DNS en Cloudflare, `.env` creado y Nginx activo. Pendiente: respaldos de la base. Ver `DEPLOY.md` |
 | Puertos ya ocupados | 8000 Privacia · 8001 y 9001 Centinela · 8002 Radar |
 ## 7. Piezas del ecosistema que podemos reutilizar
 
@@ -177,9 +177,9 @@ Local (Kiro) ─► git push ─► GitHub Action: pruebas ─► scp + ssh (cla
 | 6 | Sin bitácora inmutable ni RLS | **Bitácora resuelta. RLS abierta** (reutilizar `rls_setup.sql` de Privacia) |
 | 7 | `/demo/cargar` disponible en producción | Abierta (solo admin y solo cuentas vacías). Deshabilitar con `ENV=production` |
 | 8 | Sin evidencias adjuntas ni informes PDF | Abierta (producto) |
-| 9 | Sin respaldos de la base de HSEQ | Documentado en `DEPLOY.md`; falta agregarlo al cron del VPS |
+| 9 | Sin respaldos de la base de HSEQ | Abierta. Falta agregarlo al cron del VPS |
 | 10 | Factores de emisión referenciales | Abierta. Cargar factores oficiales por país y año |
-| 11 | Despliegue no probado con Docker y PostgreSQL | Abierta. Las pruebas corren sobre SQLite. Los disparadores de la bitácora para PostgreSQL y el bloqueo `pg_advisory_xact_lock` no se ejecutaron |
+| 11 | Pruebas automáticas solo sobre SQLite | Parcial. En el VPS se verificó la migración y el disparador de la bitácora en PostgreSQL. El bloqueo `pg_advisory_xact_lock` bajo carga concurrente no se probó |
 | 12 | La bitácora no detecta el borrado de las últimas entradas | Abierta. Guardar fuera del sistema el último hash y el número de entradas, por ejemplo en el informe mensual |
 
 ## 9. Hoja de ruta sugerida
