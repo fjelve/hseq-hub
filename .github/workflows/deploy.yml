@@ -28,7 +28,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "."
           target: "/var/www/hseq"
-          exclude: ".git,.gitignore,.github,.env,backend/.venv,backend/tests,*.db"
+          exclude: ".git,.gitignore,.github,.env,backend/.venv,backend/tests,*.db,marketing,Brochure_HSEQ_Hub.html,Brochure_HSEQ_Hub.pdf"
       - name: Reconstruir contenedores
         uses: appleboy/ssh-action@v1.0.3
         with:
