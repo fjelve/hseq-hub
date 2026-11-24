@@ -430,3 +430,21 @@ def test_superadmin_desactiva_empresa_y_restablece_clave(client):
     id_super = [u for u in client.get(f"{P}/auth/me", headers=su).json().values()][0]
     assert client.post(f"{P}/plataforma/usuarios/{id_super}/password", headers=su, json={"nueva": "Otra12345678"}).status_code == 404
     assert client.patch(f"{P}/plataforma/empresas/1", headers=su, json={"activa": True}).status_code in (200, 404)
+
+
+def test_demo_permite_auditoria_programada_vacia_y_por_consola(client):
+    from app.cargar_demo import main as cargar_consola
+    import sys
+    h = registrar(client, "Demo Consola", "consola@example.com", "mineria", "chile")
+    pl = client.get(f"{P}/plantillas", params={"sector": "mineria"}, headers=h).json()[0]
+    client.post(f"{P}/auditorias", headers=h, json={"plantilla_id": pl["id"]})  # programada, sin respuestas
+    sys.argv = ["cargar_demo", "--email", "consola@example.com"]
+    assert cargar_consola() == 0
+    assert cargar_consola() == 1  # segunda vez: ya tiene actividad
+    d = client.get(f"{P}/dashboard", headers=h).json()
+    assert d["hallazgos_abiertos"] > 0 and d["seguridad"]["horas_12m"] > 0 and len(d["tendencia_cumplimiento"]) == 4
+    assert client.post(f"{P}/demo/cargar", headers=h).status_code == 409
+    acciones = {e["actor"] for e in client.get(f"{P}/bitacora", headers=h).json() if e["accion"] == "demo.cargar"}
+    assert acciones == {"sistema"}
+    sys.argv = ["cargar_demo", "--email", "no-existe@example.com"]
+    assert cargar_consola() == 1

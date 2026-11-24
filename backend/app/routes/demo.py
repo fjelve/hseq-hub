@@ -37,12 +37,27 @@ REQUISITOS = [  # (nombre, tipo, entidad, días al vencimiento, solo minería)
 ]
 
 
+def cuenta_sin_actividad(db: Session, eid: int) -> bool:
+    """True si la empresa aún no tiene actividad real. Una auditoría programada sin respuestas no cuenta."""
+    if (db.query(Hallazgo).filter_by(empresa_id=eid).count()
+            or db.query(Incidente).filter_by(empresa_id=eid).count()
+            or db.query(HorasTrabajadas).filter_by(empresa_id=eid).count()):
+        return False
+    return not (db.query(Respuesta).join(Auditoria, Respuesta.auditoria_id == Auditoria.id)
+                .filter(Auditoria.empresa_id == eid).count())
+
+
 @router.post("/demo/cargar", status_code=201)
 def cargar(user: Usuario = Depends(require_roles("admin")), db: Session = Depends(get_db)):
-    eid = user.empresa_id
-    if (db.query(Hallazgo).filter_by(empresa_id=eid).count()
-            or db.query(Auditoria).filter_by(empresa_id=eid).count()):
+    if not cuenta_sin_actividad(db, user.empresa_id):
         raise HTTPException(409, "La empresa ya tiene datos; la carga de ejemplo solo aplica a cuentas vacías")
+    cargar_datos_demo(db, user, actor=user)
+    return {"ok": True}
+
+
+def cargar_datos_demo(db: Session, user: Usuario, actor: Usuario | None = None) -> None:
+    """Carga datos de ejemplo en la empresa de `user`. `actor` es quien queda en la bitácora."""
+    eid = user.empresa_id
     emp = db.get(Empresa, eid)
     rnd = random.Random(42)
     hoy = date.today()
@@ -161,6 +176,5 @@ def cargar(user: Usuario = Depends(require_roles("admin")), db: Session = Depend
                            anio_base=hoy.year - 1, valor_base=round((sv.total_anual(db, emp, "residuos_peligrosos_kg") or 15000) * 1.5, 1),
                            anio_meta=hoy.year + 3, reduccion_pct=25),
     ])
-    registrar(db, eid, user, "demo.cargar", "empresa", eid, {})
+    registrar(db, eid, actor, "demo.cargar", "empresa", eid, {"origen": "api" if actor else "consola"})
     db.commit()
-    return {"ok": True}
