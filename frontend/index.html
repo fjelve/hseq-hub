@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HSEQ Hub</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --txt:#e2e8f0; --mut:#94a3b8; --ac:#f59e0b; --ok:#22c55e; --bad:#ef4444; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,Segoe UI,sans-serif; background:var(--bg); color:var(--txt); }
+  header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:var(--card); }
+  nav button, .btn { background:var(--ac); color:#111; border:0; padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600; margin-right:6px; }
+  nav button.sec, .btn.sec { background:#334155; color:var(--txt); }
+  main { max-width:1000px; margin:20px auto; padding:0 16px; }
+  .card { background:var(--card); border-radius:10px; padding:16px; margin-bottom:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+  .kpi b { font-size:30px; display:block; }
+  .kpi span { color:var(--mut); font-size:13px; }
+  input, select, textarea { width:100%; padding:8px; margin:4px 0 10px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:var(--txt); }
+  label { font-size:13px; color:var(--mut); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px; border-bottom:1px solid #334155; vertical-align:top; }
+  .tag { padding:2px 8px; border-radius:10px; font-size:12px; background:#334155; }
+  .critica { background:var(--bad); } .alta { background:#f97316; color:#111; } .vencido { color:var(--bad); font-weight:700; }
+  .hidden { display:none; } .err { color:var(--bad); }
+  .item { padding:10px 0; border-bottom:1px solid #334155; }
+  .item .crit { color:var(--bad); font-size:12px; }
+</style>
+</head>
+<body>
+<div id="login" class="card" style="max-width:420px;margin:60px auto">
+  <h2>HSEQ Hub</h2>
+  <div id="loginForm">
+    <label>Correo</label><input id="lEmail" type="email">
+    <label>Contraseña</label><input id="lPass" type="password">
+    <button class="btn" onclick="login()">Ingresar</button>
+    <button class="btn sec" onclick="toggleReg(true)">Crear empresa</button>
+  </div>
+  <div id="regForm" class="hidden">
+    <label>Empresa</label><input id="rEmp">
+    <label>Sector</label><select id="rSec"><option value="mineria">Minería</option><option value="industria">Industria</option></select>
+    <label>Tu nombre</label><input id="rNom">
+    <label>Correo</label><input id="rEmail" type="email">
+    <label>Contraseña (mín. 10 caracteres)</label><input id="rPass" type="password">
+    <button class="btn" onclick="registro()">Crear cuenta</button>
+    <button class="btn sec" onclick="toggleReg(false)">Volver</button>
+  </div>
+  <p id="loginErr" class="err"></p>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <strong id="who"></strong>
+    <nav>
+      <button onclick="vista('dash')">Resumen</button>
+      <button onclick="vista('hall')">Hallazgos</button>
+      <button onclick="vista('aud')">Auditorías</button>
+      <button class="sec" onclick="salir()">Salir</button>
+    </nav>
+  </header>
+  <main id="main"></main>
+</div>
+
+<script>
+const API = (window.HSEQ_API || "http://localhost:8000") + "/api/v1";
+let token = sessionStorage.getItem("tk"), yo = null;
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $ = id => document.getElementById(id);
+
+async function api(path, opts = {}) {
+  const h = {"Authorization": "Bearer " + token};
+  if (opts.body) h["Content-Type"] = "application/json";
+  const r = await fetch(API + path, {...opts, headers: h, body: opts.body ? JSON.stringify(opts.body) : undefined});
+  if (r.status === 401) { salir(); throw new Error("Sesión expirada"); }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof d.detail === "string" ? d.detail : "Datos inválidos");
+  return d;
+}
+function toggleReg(v) { $("loginForm").classList.toggle("hidden", v); $("regForm").classList.toggle("hidden", !v); }
+async function auth(url, init) {
+  $("loginErr").textContent = "";
+  try {
+    const r = await fetch(API + url, init); const d = await r.json();
+    if (!r.ok) throw new Error(typeof d.detail === "string" ? d.detail : "Revisa los datos ingresados");
+    token = d.access_token; sessionStorage.setItem("tk", token); await iniciar();
+  } catch (e) { $("loginErr").textContent = e.message; }
+}
+const login = () => auth("/auth/login", {method:"POST", body:new URLSearchParams({username:$("lEmail").value, password:$("lPass").value})});
+const registro = () => auth("/auth/registro", {method:"POST", headers:{"Content-Type":"application/json"},
+  body: JSON.stringify({empresa:$("rEmp").value, sector:$("rSec").value, nombre:$("rNom").value, email:$("rEmail").value, password:$("rPass").value})});
+function salir() { sessionStorage.removeItem("tk"); token = null; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
+async function iniciar() {
+  yo = await api("/auth/me");
+  $("who").textContent = yo.empresa + " · " + yo.nombre + " (" + yo.rol + ")";
+  $("login").classList.add("hidden"); $("app").classList.remove("hidden"); vista("dash");
+}
+function vista(v) { ({dash, hall, aud})[v]().catch(e => $("main").innerHTML = `<p class="err">${esc(e.message)}</p>`); }
+
+async function dash() {
+  const d = await api("/dashboard");
+  const k = (n, t) => `<div class="card kpi"><b>${esc(n ?? "—")}</b><span>${t}</span></div>`;
+  $("main").innerHTML = `<div class="grid">
+    ${k(d.hallazgos_abiertos, "Hallazgos abiertos")}
+    ${k(d.hallazgos_vencidos, "Vencidos")}
+    ${k(d.auditorias_pendientes, "Auditorías pendientes")}
+    ${k(d.cumplimiento_promedio == null ? null : d.cumplimiento_promedio + "%", "Cumplimiento promedio")}</div>
+    <div class="card"><h3>Abiertos por severidad</h3>${
+      Object.entries(d.abiertos_por_severidad).map(([s, n]) => `<span class="tag ${esc(s)}">${esc(s)}: ${esc(n)}</span> `).join("") || "Sin hallazgos abiertos"}</div>`;
+}
+
+async function hall() {
+  const hs = await api("/hallazgos");
+  $("main").innerHTML = `<div class="card"><h3>Nuevo hallazgo</h3>
+    <label>Título</label><input id="hT"><label>Descripción</label><textarea id="hD"></textarea>
+    <label>Severidad</label><select id="hS"><option>baja</option><option selected>media</option><option>alta</option><option>critica</option></select>
+    <label>Área</label><input id="hA">
+    <button class="btn" onclick="crearH()">Registrar</button> <span id="hErr" class="err"></span></div>
+    <div class="card"><h3>Hallazgos</h3><table><tr><th>Código</th><th>Título</th><th>Sev.</th><th>Estado</th><th>Compromiso</th><th></th></tr>${
+    hs.map(h => `<tr><td>${esc(h.codigo)}</td><td>${esc(h.titulo)}</td><td><span class="tag ${esc(h.severidad)}">${esc(h.severidad)}</span></td>
+      <td>${esc(h.estado)}</td><td class="${h.vencido ? "vencido" : ""}">${esc(h.fecha_compromiso || "")}${h.vencido ? " (vencido)" : ""}</td>
+      <td>${h.estado !== "cerrado" ? `<button class="btn sec" onclick="gestionar(${Number(h.id)})">Gestionar</button>` : ""}</td></tr>`).join("")}</table></div>
+    <div id="gest"></div>`;
+}
+async function crearH() {
+  try { await api("/hallazgos", {method:"POST", body:{titulo:$("hT").value, descripcion:$("hD").value, severidad:$("hS").value, area:$("hA").value, origen:"otro"}}); hall(); }
+  catch (e) { $("hErr").textContent = e.message; }
+}
+async function gestionar(id) {
+  const h = await api("/hallazgos/" + id);
+  $("gest").innerHTML = `<div class="card"><h3>${esc(h.codigo)} · ${esc(h.titulo)}</h3>
+    <label>Causa raíz</label><textarea id="gC">${esc(h.causa_raiz)}</textarea>
+    <label>Método</label><select id="gM"><option value="5_porques">5 Porqués</option><option value="ishikawa">Ishikawa</option><option value="otro">Otro</option></select>
+    <button class="btn sec" onclick="guardarCausa(${id})">Guardar causa</button>
+    <h4>Acciones</h4>${h.acciones.map(a => `<div class="item">${esc(a.tipo)}: ${esc(a.descripcion)} ${a.completada ? "✔ " + esc(a.evidencia)
+      : `<button class="btn sec" onclick="completar(${id},${Number(a.id)})">Completar</button>`}</div>`).join("") || "<p>Sin acciones</p>"}
+    <label>Nueva acción</label><input id="gA"><button class="btn sec" onclick="addAccion(${id})">Agregar</button>
+    <h4>Cierre</h4><label>Verificación de eficacia</label><textarea id="gV"></textarea>
+    <button class="btn" onclick="cerrarH(${id})">Cerrar hallazgo</button> <span id="gErr" class="err"></span></div>`;
+  $("gM").value = h.metodo_causa || "5_porques";
+}
+const run = async (fn, id) => { try { await fn(); gestionar(id); } catch (e) { $("gErr") ? $("gErr").textContent = e.message : alert(e.message); } };
+const guardarCausa = id => run(() => api("/hallazgos/" + id, {method:"PATCH", body:{causa_raiz:$("gC").value, metodo_causa:$("gM").value}}), id);
+const addAccion = id => run(() => api(`/hallazgos/${id}/acciones`, {method:"POST", body:{descripcion:$("gA").value}}), id);
+const completar = (id, aid) => { const ev = prompt("Evidencia de la acción:"); if (ev) run(() => api(`/hallazgos/${id}/acciones/${aid}/completar`, {method:"POST", body:{evidencia:ev}}), id); };
+const cerrarH = id => run(async () => { await api(`/hallazgos/${id}/cerrar`, {method:"POST", body:{verificacion_eficacia:$("gV").value}}); hall(); }, id);
+
+async function aud() {
+  const [as, ps] = await Promise.all([api("/auditorias"), api("/plantillas?sector=" + yo.sector)]);
+  const nombre = id => (ps.find(p => p.id === id) || {}).nombre || "Plantilla " + id;
+  $("main").innerHTML = `<div class="card"><h3>Programar auditoría</h3>
+    <label>Checklist</label><select id="aP">${ps.map(p => `<option value="${Number(p.id)}">${esc(p.nombre)} (${esc(p.norma)})</option>`).join("")}</select>
+    <label>Área</label><input id="aA"><button class="btn" onclick="crearA()">Programar</button> <span id="aErr" class="err"></span></div>
+    <div class="card"><h3>Auditorías</h3><table><tr><th>#</th><th>Checklist</th><th>Área</th><th>Estado</th><th>Puntaje</th><th></th></tr>${
+    as.map(a => `<tr><td>${Number(a.id)}</td><td>${esc(nombre(a.plantilla_id))}</td><td>${esc(a.area)}</td><td>${esc(a.estado)}</td><td>${a.puntaje == null ? "" : esc(a.puntaje) + "%"}</td>
+      <td>${a.estado !== "cerrada" ? `<button class="btn sec" onclick="ejecutar(${Number(a.id)})">Ejecutar</button>` : ""}</td></tr>`).join("")}</table></div><div id="exec"></div>`;
+}
+async function crearA() {
+  try { await api("/auditorias", {method:"POST", body:{plantilla_id:Number($("aP").value), area:$("aA").value}}); aud(); }
+  catch (e) { $("aErr").textContent = e.message; }
+}
+async function ejecutar(id) {
+  const a = await api("/auditorias/" + id);
+  const pl = (await api("/plantillas")).find(p => p.id === a.plantilla_id);
+  const resp = Object.fromEntries(a.respuestas.map(r => [r.item_id, r.resultado]));
+  $("exec").innerHTML = `<div class="card"><h3>${esc(pl.nombre)}</h3>${pl.items.map(i => `<div class="item">
+    <div>${esc(i.clausula)} · ${esc(i.texto)} ${i.critico ? '<span class="crit">CRÍTICO</span>' : ""}</div>
+    <select onchange="responder(${id},${Number(i.id)},this.value)"><option value="">— Seleccionar —</option>
+    ${["cumple","no_cumple","na"].map(r => `<option value="${r}" ${resp[i.id] === r ? "selected" : ""}>${r.replace("_"," ")}</option>`).join("")}</select></div>`).join("")}
+    <button class="btn" onclick="cerrarA(${id})">Cerrar auditoría y generar hallazgos</button> <span id="eErr" class="err"></span></div>`;
+}
+async function responder(aid, iid, v) { if (v) try { await api(`/auditorias/${aid}/respuestas`, {method:"PUT", body:{item_id:iid, resultado:v}}); } catch (e) { $("eErr").textContent = e.message; } }
+async function cerrarA(id) { try { await api(`/auditorias/${id}/cerrar`, {method:"POST"}); aud(); } catch (e) { $("eErr").textContent = e.message; } }
+
+if (token) iniciar().catch(salir);
+</script>
+</body>
+</html>

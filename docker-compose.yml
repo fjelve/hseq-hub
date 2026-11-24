@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hseq
+      POSTGRES_USER: hseq
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?define DB_PASSWORD en .env}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hseq -d hseq"]
+      interval: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    environment:
+      ENV: ${ENV:-development}
+      DATABASE_URL: postgresql://hseq:${DB_PASSWORD}@db:5432/hseq
+      SECRET_KEY: ${SECRET_KEY:?define SECRET_KEY en .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  web:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  pg_data:
