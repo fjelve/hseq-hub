@@ -211,3 +211,21 @@ class IndicadorSocial(Base):
     periodo = Column(String(7), nullable=False)
     tipo = Column(String(30), nullable=False)
     valor = Column(Float, nullable=False)
+
+
+class EntradaBitacora(Base):
+    """Registro de auditoría append-only con cadena de hashes (ver services/bitacora.py)."""
+    __tablename__ = "bitacora"
+    __table_args__ = (UniqueConstraint("empresa_id", "seq"),)
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    seq = Column(Integer, nullable=False)
+    ts = Column(String(40), nullable=False)
+    actor_id = Column(Integer, nullable=True)
+    actor = Column(String(200), nullable=False)
+    accion = Column(String(60), nullable=False)
+    entidad = Column(String(40), nullable=False)
+    entidad_id = Column(Integer, nullable=True)
+    datos = Column(Text, nullable=False, default="{}")
+    hash_previo = Column(String(64), nullable=False)
+    hash_actual = Column(String(64), nullable=False)

@@ -9,6 +9,7 @@ from app.auth import current_user, require_roles
 from app.database import get_db
 from app.models import Auditoria, Empresa, PlantillaAuditoria, Respuesta, Usuario
 from app.routes.hallazgos import crear_hallazgo, validar_usuario
+from app.services.bitacora import registrar
 from app.schemas import AuditoriaIn, AuditoriaOut, PlantillaOut, RespuestaIn
 
 router = APIRouter(tags=["Auditorías"])
@@ -57,6 +58,9 @@ def programar(data: AuditoriaIn, user: Usuario = Depends(require_roles(*ESCRIBEN
                   fecha_programada=data.fecha_programada or date.today(),
                   auditor_id=data.auditor_id or user.id)
     db.add(a)
+    db.flush()
+    registrar(db, user.empresa_id, user, "auditoria.programar", "auditoria", a.id,
+              {"plantilla_id": a.plantilla_id, "area": a.area})
     db.commit()
     db.refresh(a)
     return a
@@ -122,6 +126,8 @@ def cerrar(aid: int, user: Usuario = Depends(require_roles(*ESCRIBEN)),
     total = cumple + no_cumple
     a.puntaje = round(100 * cumple / total) if total else 100
     a.estado = "cerrada"
+    registrar(db, user.empresa_id, user, "auditoria.cerrar", "auditoria", a.id,
+              {"puntaje": a.puntaje, "no_conformidades": no_cumple})
     db.commit()
     db.refresh(a)
     return a

@@ -13,6 +13,7 @@ from app.models import (
     PlantillaAuditoria, RequisitoLegal, Respuesta, Usuario, IndicadorSocial, MetaSostenibilidad,
 )
 from app.routes.hallazgos import PLAZO_DIAS, crear_hallazgo
+from app.services.bitacora import registrar
 
 router = APIRouter(tags=["Demo"])
 
@@ -160,5 +161,6 @@ def cargar(user: Usuario = Depends(require_roles("admin")), db: Session = Depend
                            anio_base=hoy.year - 1, valor_base=round((sv.total_anual(db, emp, "residuos_peligrosos_kg") or 15000) * 1.5, 1),
                            anio_meta=hoy.year + 3, reduccion_pct=25),
     ])
+    registrar(db, eid, user, "demo.cargar", "empresa", eid, {})
     db.commit()
     return {"ok": True}

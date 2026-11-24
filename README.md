@@ -12,6 +12,8 @@ auditoría → hallazgo → acción correctiva (CAPA) → verificación → cier
 - Incidentes con índices de frecuencia y severidad, requisitos legales con vencimientos y alertas.
 - Sostenibilidad: huella de carbono (alcance 1, 2 y 3 parcial) con factores editables, metas de reducción con seguimiento, indicadores sociales e índice GRI/NIIF S2 exportable a CSV.
 - Checklists de sostenibilidad: GISTM, ICMM, ISO 14064, ISO 50001, NIIF S1/S2, comunidades, Ley 21.455/REP (Chile) y Ley 30754/DL 1278 (Perú).
+- Bitácora de auditoría inmutable (cadena SHA-256 por empresa, con disparadores que bloquean UPDATE y DELETE) y verificación de integridad.
+- Límite de intentos en login y en el alta de empresas. Migraciones con Alembic.
 - Dashboard de KPIs. Aislamiento de datos por empresa.
 
 Los checklists son un punto de partida resumido. Cada cliente debe validarlos contra su sistema de gestión y la normativa local vigente.
@@ -21,14 +23,16 @@ Los checklists son un punto de partida resumido. Cada cliente debe validarlos co
 cp .env.example .env   # completa DB_PASSWORD y SECRET_KEY
 docker compose up --build
 ```
-App: http://localhost:8080 · API/Docs: http://localhost:8000/docs
+App y API en el mismo origen: http://localhost:8003 · Documentación: http://localhost:8003/docs
+Despliegue en el VPS: ver `DEPLOY.md`. Arquitectura: ver `ARQUITECTURA.md`.
 
 ## Desarrollo y pruebas
 ```
 cd backend
 python -m venv .venv && .venv\Scripts\pip install -r requirements.txt
 .venv\Scripts\python -m pytest
-.venv\Scripts\uvicorn app.main:app --reload
+.venv\Scripts\alembic upgrade head          # crea el esquema (SQLite local)
+.venv\Scripts\uvicorn app.main:app --reload # app en http://localhost:8000
 ```
 
 ## Hoja de ruta

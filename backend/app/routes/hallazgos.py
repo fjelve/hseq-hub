@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth import current_user, require_roles
 from app.database import get_db
 from app.models import Accion, Hallazgo, Usuario
+from app.services.bitacora import registrar
 from app.schemas import (
     AccionCompletar, AccionIn, AccionOut, CerrarIn, HallazgoIn, HallazgoOut, HallazgoUpdate,
 )
@@ -77,6 +78,8 @@ def crear(data: HallazgoIn, user: Usuario = Depends(require_roles(*ESCRIBEN)),
           db: Session = Depends(get_db)):
     validar_usuario(db, user.empresa_id, data.responsable_id)
     h = crear_hallazgo(db, user.empresa_id, data.model_dump())
+    registrar(db, user.empresa_id, user, "hallazgo.crear", "hallazgo", h.id,
+              {"codigo": h.codigo, "severidad": h.severidad})
     db.commit()
     db.refresh(h)
     return a_out(h)
@@ -100,6 +103,8 @@ def actualizar(hid: int, data: HallazgoUpdate,
         setattr(h, k, v)
     if "fecha_compromiso" in cambios:
         h.vencido_notificado = False
+    registrar(db, user.empresa_id, user, "hallazgo.actualizar", "hallazgo", h.id,
+              {"codigo": h.codigo, "campos": sorted(cambios)})
     db.commit()
     db.refresh(h)
     return a_out(h)
@@ -117,6 +122,9 @@ def agregar_accion(hid: int, data: AccionIn,
     db.add(a)
     if h.estado == "abierto":
         h.estado = "en_proceso"
+    db.flush()
+    registrar(db, user.empresa_id, user, "hallazgo.accion_agregada", "hallazgo", h.id,
+              {"codigo": h.codigo, "accion_id": a.id, "tipo": a.tipo})
     db.commit()
     db.refresh(a)
     return a
@@ -137,6 +145,8 @@ def completar_accion(hid: int, aid: int, data: AccionCompletar,
     # Con todas las acciones hechas, pasa a verificación de eficacia.
     if h.estado in ("abierto", "en_proceso") and all(x.completada for x in h.acciones):
         h.estado = "en_verificacion"
+    registrar(db, user.empresa_id, user, "hallazgo.accion_completada", "hallazgo", h.id,
+              {"codigo": h.codigo, "accion_id": a.id})
     db.commit()
     db.refresh(a)
     return a
@@ -157,6 +167,8 @@ def cerrar(hid: int, data: CerrarIn, user: Usuario = Depends(require_roles(*ESCR
     h.estado = "cerrado"
     h.fecha_cierre = date.today()
     h.verificacion_eficacia = data.verificacion_eficacia
+    registrar(db, user.empresa_id, user, "hallazgo.cerrar", "hallazgo", h.id,
+              {"codigo": h.codigo, "acciones": len(h.acciones), "fecha_cierre": str(h.fecha_cierre)})
     db.commit()
     db.refresh(h)
     return a_out(h)

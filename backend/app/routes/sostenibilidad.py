@@ -8,6 +8,7 @@ from app.auth import current_user, require_roles
 from app.database import get_db
 from app.models import Empresa, FactorEmpresa, IndicadorSocial, MetaSostenibilidad, Usuario
 from app.services import sostenibilidad as sv
+from app.services.bitacora import registrar
 
 router = APIRouter(tags=["Sostenibilidad"])
 ESCRIBEN = ("admin", "auditor")
@@ -39,6 +40,7 @@ def guardar_factor(data: FactorIn, user: Usuario = Depends(require_roles(*ESCRIB
         f.valor, f.fuente = data.valor, data.fuente
     else:
         db.add(FactorEmpresa(empresa_id=user.empresa_id, **data.model_dump()))
+    registrar(db, user.empresa_id, user, "factor.guardar", "factor", None, data.model_dump())
     db.commit()
     return data
 
@@ -66,6 +68,8 @@ def crear_meta(data: MetaIn, user: Usuario = Depends(require_roles(*ESCRIBEN)),
         raise HTTPException(422, "El año meta debe ser posterior al año base")
     m = MetaSostenibilidad(empresa_id=user.empresa_id, **data.model_dump())
     db.add(m)
+    db.flush()
+    registrar(db, user.empresa_id, user, "meta.crear", "meta", m.id, data.model_dump())
     db.commit()
     return sv.estado_meta(db, _emp(db, user), m)
 
@@ -76,6 +80,7 @@ def borrar_meta(mid: int, user: Usuario = Depends(require_roles(*ESCRIBEN)),
     m = db.get(MetaSostenibilidad, mid)
     if not m or m.empresa_id != user.empresa_id:
         raise HTTPException(404, "Meta no encontrada")
+    registrar(db, user.empresa_id, user, "meta.eliminar", "meta", m.id, {"nombre": m.nombre})
     db.delete(m)
     db.commit()
 

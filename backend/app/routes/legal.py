@@ -9,6 +9,7 @@ from app.auth import current_user, require_roles
 from app.database import get_db
 from app.models import RequisitoLegal, Usuario
 from app.routes.hallazgos import validar_usuario
+from app.services.bitacora import registrar
 
 router = APIRouter(tags=["Requisitos legales"])
 ESCRIBEN = ("admin", "auditor")
@@ -57,6 +58,9 @@ def crear(data: RequisitoIn, user: Usuario = Depends(require_roles(*ESCRIBEN)),
     validar_usuario(db, user.empresa_id, data.responsable_id)
     r = RequisitoLegal(empresa_id=user.empresa_id, **data.model_dump())
     db.add(r)
+    db.flush()
+    registrar(db, user.empresa_id, user, "requisito.crear", "requisito", r.id,
+              {"nombre": r.nombre, "vence": str(r.fecha_vencimiento)})
     db.commit()
     db.refresh(r)
     return a_out(r)
@@ -72,6 +76,8 @@ def renovar(rid: int, nueva_fecha: date, user: Usuario = Depends(require_roles(*
         raise HTTPException(422, "La nueva fecha debe ser futura")
     r.fecha_vencimiento = nueva_fecha
     r.notificado = False
+    registrar(db, user.empresa_id, user, "requisito.renovar", "requisito", r.id,
+              {"nombre": r.nombre, "nueva_fecha": str(nueva_fecha)})
     db.commit()
     db.refresh(r)
     return a_out(r)

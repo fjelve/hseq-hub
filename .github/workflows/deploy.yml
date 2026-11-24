@@ -1,0 +1,46 @@
+name: Deploy HSEQ Hub
+on:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pruebas
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          python -m pytest -q
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copiar código al VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "."
+          target: "/var/www/hseq"
+          exclude: ".git,.gitignore,.github,.env,backend/.venv,backend/tests,*.db"
+      - name: Reconstruir contenedores
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/hseq
+            test -f .env || { echo "Falta /var/www/hseq/.env (ver DEPLOY.md)"; exit 1; }
+            docker compose up -d --build
+            sleep 15
+            curl -fsS http://127.0.0.1:8003/health
+            docker compose ps
+            echo "Deploy HSEQ OK $(date)"

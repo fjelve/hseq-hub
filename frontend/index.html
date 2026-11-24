@@ -78,6 +78,7 @@
     <button class="nav" data-v="inc" onclick="vista('inc')">🚑 Incidentes</button>
     <button class="nav" data-v="leg" onclick="vista('leg')">📜 Requisitos legales</button>
     <button class="nav" data-v="amb" onclick="vista('amb')">🌱 Sostenibilidad</button>
+    <button class="nav" data-v="bit" onclick="vista('bit')">🔒 Bitácora</button>
     <div class="sp"></div>
     <button class="nav" onclick="salir()">Salir</button>
   </aside>
@@ -85,7 +86,9 @@
 </div>
 
 <script>
-const API = (window.HSEQ_API || "http://localhost:8000") + "/api/v1";
+// Mismo origen que la API (la API sirve este archivo). Solo si se abre desde otro puerto local
+// (p. ej. un servidor estático en :8080) se apunta a la API en :8000.
+const API = (window.HSEQ_API || (location.hostname === "localhost" && location.port === "8080" ? "http://localhost:8000" : location.origin)) + "/api/v1";
 let token = sessionStorage.getItem("tk"), yo = null;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const $ = id => document.getElementById(id);
@@ -108,6 +111,7 @@ async function auth(url, init) {
   $("loginErr").textContent = "";
   try {
     const r = await fetch(API + url, init); const d = await r.json();
+    if (r.status === 429) throw new Error("Demasiados intentos. Espera unos minutos e inténtalo de nuevo.");
     if (!r.ok) throw new Error(typeof d.detail === "string" ? d.detail : "Revisa los datos ingresados");
     token = d.access_token; sessionStorage.setItem("tk", token); await iniciar();
   } catch (e) { $("loginErr").textContent = e.message; }
@@ -115,7 +119,7 @@ async function auth(url, init) {
 const login = () => auth("/auth/login", {method:"POST", body:new URLSearchParams({username:$("lEmail").value, password:$("lPass").value})});
 const registro = () => auth("/auth/registro", {method:"POST", headers:{"Content-Type":"application/json"},
   body: JSON.stringify({empresa:$("rEmp").value, sector:$("rSec").value, pais:$("rPai").value, nombre:$("rNom").value, email:$("rEmail").value, password:$("rPass").value})});
-function salir() { sessionStorage.removeItem("tk"); token = null; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
+function salir() { sessionStorage.removeItem("tk"); token = null; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); toggleReg(false); }
 async function iniciar() {
   yo = await api("/auth/me");
   $("who").textContent = `${yo.empresa} · ${yo.pais === "peru" ? "Perú" : "Chile"} · ${yo.rol}`;
@@ -379,6 +383,26 @@ async function sosNorm() {
     <table><tr><th>Checklist</th><th>Norma o estándar</th><th>Ítems</th></tr>${ps.map(p => `<tr><td>${esc(p.nombre)}</td><td>${esc(p.norma)}</td><td>${p.items.length}</td></tr>`).join("")}</table>
     <br><button class="btn" onclick="vista('aud')">Ir a Auditorías</button></div>`;
 }
+/* ---------- Bitácora ---------- */
+VISTAS.bit = async () => {
+  if (yo.rol === "responsable") { $("main").innerHTML = "<h2>Bitácora</h2><p>Disponible para administradores y auditores.</p>"; return; }
+  const es = await api("/bitacora?limite=100");
+  $("main").innerHTML = `<h2>Bitácora de auditoría</h2>
+  <div class="card"><p style="color:var(--mut);font-size:13px">Cada acción relevante queda registrada en una cadena de huellas SHA-256. Si alguien altera o borra una entrada intermedia, la verificación lo detecta. Guarda el último hash en tus informes para detectar también el borrado de las últimas entradas.</p>
+    <button class="btn" onclick="verificarBit()">Verificar integridad</button> <span id="bitRes"></span></div>
+  <div class="card"><h3>Últimas ${es.length} entradas</h3><table><tr><th>#</th><th>Fecha (UTC)</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>Hash</th></tr>${
+    es.map(e => `<tr><td>${esc(e.seq)}</td><td>${esc(e.ts.slice(0, 19).replace("T", " "))}</td><td>${esc(e.actor)}</td><td>${esc(e.accion)}</td>
+      <td><small>${esc(e.datos)}</small></td><td><code title="${esc(e.hash)}">${esc(e.hash.slice(0, 10))}…</code></td></tr>`).join("")}</table></div>`;
+};
+async function verificarBit() {
+  try {
+    const v = await api("/bitacora/verificar");
+    $("bitRes").innerHTML = v.valida
+      ? `<span class="tag vigente">Íntegra</span> ${esc(v.entradas)} entradas · último hash <code>${esc(v.ultimo_hash)}</code>`
+      : `<span class="tag vencido">ALTERADA</span> en la entrada ${esc(v.primer_error.seq)}: ${esc(v.primer_error.motivo)}`;
+  } catch (e) { $("bitRes").textContent = e.message; }
+}
+
 if (token) iniciar().catch(salir);
 </script>
 </body>

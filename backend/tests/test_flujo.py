@@ -5,6 +5,8 @@ from datetime import date, timedelta
 _db = os.path.join(tempfile.mkdtemp(), "test.db")
 os.environ["DATABASE_URL"] = f"sqlite:///{_db}"
 os.environ["ENV"] = "development"
+os.environ["AUTO_CREATE_TABLES"] = "1"
+os.environ["REGISTRO_MAX_POR_HORA"] = "1000"  # las pruebas crean muchas empresas desde la misma IP
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -192,3 +194,118 @@ def test_plantillas_sostenibilidad_por_pais(client):
     n_pe = {p["clave"] for p in client.get(f"{P}/plantillas", params={"sector": "industria"}, headers=pe).json()}
     assert {"sos-gistm", "cl-sos-clima-rep", "sos-ghg-14064"} <= n_cl and "pe-sos-clima-residuos" not in n_cl
     assert "sos-gistm" not in n_pe and {"pe-sos-clima-residuos", "sos-niif-s1-s2"} <= n_pe
+
+
+# ---------------------------------------------------------------- seguridad y trazabilidad
+def test_login_limita_intentos_por_cuenta(client):
+    from app import ratelimit
+    ratelimit.login_cuenta.limpiar(); ratelimit.login_ip.limpiar()
+    registrar(client, "Lim Ind", "lim@example.com", "industria")
+    for _ in range(5):
+        assert client.post(f"{P}/auth/login", data={"username": "lim@example.com", "password": "incorrecta123"}).status_code == 401
+    r = client.post(f"{P}/auth/login", data={"username": "lim@example.com", "password": "ClaveSegura123"})
+    assert r.status_code == 429 and int(r.headers["retry-after"]) > 0  # bloquea aun con la clave correcta
+    # otro correo desde la misma IP no queda bloqueado
+    registrar(client, "Lim Ind 2", "lim2@example.com", "industria")
+    assert client.post(f"{P}/auth/login", data={"username": "lim2@example.com", "password": "ClaveSegura123"}).status_code == 200
+    ratelimit.login_cuenta.limpiar(); ratelimit.login_ip.limpiar()
+
+
+def test_login_correcto_reinicia_contador(client):
+    from app import ratelimit
+    ratelimit.login_cuenta.limpiar(); ratelimit.login_ip.limpiar()
+    registrar(client, "Lim Ind 3", "lim3@example.com", "industria")
+    for _ in range(4):
+        client.post(f"{P}/auth/login", data={"username": "lim3@example.com", "password": "mala-clave-123"})
+    assert client.post(f"{P}/auth/login", data={"username": "lim3@example.com", "password": "ClaveSegura123"}).status_code == 200
+    for _ in range(4):  # el contador volvió a cero
+        assert client.post(f"{P}/auth/login", data={"username": "lim3@example.com", "password": "mala-clave-123"}).status_code == 401
+    ratelimit.login_cuenta.limpiar(); ratelimit.login_ip.limpiar()
+
+
+def test_registro_limitado_por_ip(client):
+    from app import ratelimit
+    anterior = ratelimit.registro_ip.maximo
+    ratelimit.registro_ip.limpiar(); ratelimit.registro_ip.maximo = 2
+    try:
+        codigos = [client.post(f"{P}/auth/registro", json={
+            "empresa": "Spam SA", "sector": "industria", "pais": "chile", "nombre": "Xy",
+            "email": f"spam{i}@example.com", "password": "ClaveSegura123"}).status_code for i in range(3)]
+        assert codigos == [201, 201, 429]
+    finally:
+        ratelimit.registro_ip.maximo = anterior
+        ratelimit.registro_ip.limpiar()
+
+
+def test_cabeceras_de_proxy_se_ignoran_sin_trust_proxy(client):
+    from app import ratelimit
+    ratelimit.login_cuenta.limpiar(); ratelimit.login_ip.limpiar()
+    registrar(client, "Lim Ind 4", "lim4@example.com", "industria")
+    for i in range(5):  # el atacante cambia X-Forwarded-For en cada intento: no evade el límite
+        client.post(f"{P}/auth/login", headers={"X-Forwarded-For": f"10.0.0.{i}"},
+                    data={"username": "lim4@example.com", "password": "mala-clave-123"})
+    r = client.post(f"{P}/auth/login", headers={"X-Forwarded-For": "10.9.9.9"},
+                    data={"username": "lim4@example.com", "password": "ClaveSegura123"})
+    assert r.status_code == 429
+    ratelimit.login_cuenta.limpiar(); ratelimit.login_ip.limpiar()
+
+
+def test_bitacora_encadenada_y_detecta_alteraciones(client):
+    from sqlalchemy import text
+    h = registrar(client, "Bit Min", "bit@example.com", "mineria")
+    hid = client.post(f"{P}/hallazgos", headers=h, json={"titulo": "Cable pelado en tablero"}).json()["id"]
+    client.patch(f"{P}/hallazgos/{hid}", headers=h, json={"causa_raiz": "Falta de mantenimiento"})
+    client.post(f"{P}/hallazgos/{hid}/acciones", headers=h, json={"descripcion": "Reemplazar cable"})
+    entradas = client.get(f"{P}/bitacora", headers=h).json()
+    assert [e["accion"] for e in reversed(entradas)] == [
+        "empresa.registro", "hallazgo.crear", "hallazgo.actualizar", "hallazgo.accion_agregada"]
+    v = client.get(f"{P}/bitacora/verificar", headers=h).json()
+    assert v["valida"] and v["entradas"] == 4 and len(v["ultimo_hash"]) == 64
+
+    # Alterar el contenido de una entrada intermedia (esta base de prueba no tiene los disparadores)
+    db = SessionLocal()
+    try:
+        db.execute(text("UPDATE bitacora SET datos='{\"codigo\":\"FALSO\"}' WHERE accion='hallazgo.crear' "
+                        "AND empresa_id=(SELECT empresa_id FROM usuarios WHERE email='bit@example.com')"))
+        db.commit()
+    finally:
+        db.close()
+    v = client.get(f"{P}/bitacora/verificar", headers=h).json()
+    assert v["valida"] is False and v["primer_error"]["seq"] == 2
+
+
+def test_bitacora_aislada_y_solo_para_admin_o_auditor(client):
+    h1 = registrar(client, "Bit A", "bita@example.com", "industria")
+    h2 = registrar(client, "Bit B", "bitb@example.com", "industria")
+    client.post(f"{P}/hallazgos", headers=h1, json={"titulo": "Solo de A"})
+    assert all("Solo de A" not in e["datos"] for e in client.get(f"{P}/bitacora", headers=h2).json())
+    client.post(f"{P}/usuarios", headers=h1, json={"nombre": "Op", "email": "opbita@example.com",
+                                                    "password": "ClaveSegura123", "rol": "responsable"})
+    t = client.post(f"{P}/auth/login", data={"username": "opbita@example.com", "password": "ClaveSegura123"}).json()["access_token"]
+    assert client.get(f"{P}/bitacora", headers={"Authorization": f"Bearer {t}"}).status_code == 403
+
+
+def test_migracion_crea_esquema_y_bitacora_es_inmutable(tmp_path):
+    import sqlite3
+    import subprocess
+    import sys
+    db = tmp_path / "migrada.db"
+    env = {**os.environ, "DATABASE_URL": f"sqlite:///{db.as_posix()}"}
+    env.pop("AUTO_CREATE_TABLES", None)
+    r = subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], env=env,
+                       cwd=os.path.dirname(os.path.dirname(__file__)), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    con = sqlite3.connect(db)
+    tablas = {n for (n,) in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert {"empresas", "hallazgos", "bitacora", "alembic_version"} <= tablas
+    con.execute("INSERT INTO empresas (nombre, sector, pais) VALUES ('X','mineria','chile')")
+    con.execute("INSERT INTO bitacora (empresa_id, seq, ts, actor, accion, entidad, datos, hash_previo, hash_actual) "
+                "VALUES (1, 1, 't', 'a', 'x', 'e', '{}', '0', '1')")
+    con.commit()
+    for sql in ("UPDATE bitacora SET actor='otro'", "DELETE FROM bitacora"):
+        try:
+            con.execute(sql)
+            assert False, f"debió fallar: {sql}"
+        except sqlite3.DatabaseError as e:
+            assert "solo escritura" in str(e)
+    con.close()

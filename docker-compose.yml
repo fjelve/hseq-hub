@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    container_name: hseq_db
     environment:
       POSTGRES_DB: hseq
       POSTGRES_USER: hseq
@@ -14,12 +15,18 @@ services:
     restart: unless-stopped
 
   api:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: hseq_api
     environment:
-      ENV: ${ENV:-development}
+      ENV: ${ENV:-production}
       DATABASE_URL: postgresql://hseq:${DB_PASSWORD}@db:5432/hseq
       SECRET_KEY: ${SECRET_KEY:?define SECRET_KEY en .env}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # La API solo escucha en 127.0.0.1; Nginx/Cloudflare van delante y fijan la IP real.
+      # Poner TRUST_PROXY=false si se expone el puerto directamente.
+      TRUST_PROXY: ${TRUST_PROXY:-true}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -28,15 +35,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
-    restart: unless-stopped
-
-  web:
-    image: nginx:alpine
-    volumes:
-      - ./frontend:/usr/share/nginx/html:ro
-    ports:
-      - "8080:80"
+      - "127.0.0.1:8003:8000"
     restart: unless-stopped
 
 volumes:

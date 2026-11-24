@@ -9,6 +9,7 @@ from app.auth import current_user, require_roles
 from app.database import get_db
 from app.models import HorasTrabajadas, Incidente, Usuario
 from app.routes.hallazgos import crear_hallazgo
+from app.services.bitacora import registrar as registrar_bitacora
 
 router = APIRouter(tags=["Incidentes y seguridad"])
 ESCRIBEN = ("admin", "auditor")
@@ -59,6 +60,9 @@ def registrar(data: IncidenteIn, user: Usuario = Depends(require_roles(*ESCRIBEN
             "descripcion": data.descripcion, "origen": "incidente", "area": data.area,
             "severidad": data.severidad, "responsable_id": user.id})
         inc.hallazgo_id = h.id
+    registrar_bitacora(db, user.empresa_id, user, "incidente.registrar", "incidente", inc.id,
+              {"tipo": inc.tipo, "severidad": inc.severidad, "dias_perdidos": inc.dias_perdidos,
+               "hallazgo_id": inc.hallazgo_id})
     db.commit()
     db.refresh(inc)
     return inc
